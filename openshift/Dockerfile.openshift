@@ -12,7 +12,7 @@ FROM registry.ci.openshift.org/ocp/4.20:base-rhel9
 LABEL description="Cluster API Provider Nutanix Controller Manager"
 
 COPY --from=builder /build/cluster-api-provider-nutanix-controller-manager /bin/cluster-api-provider-nutanix-controller-manager
-COPY --from=builder /build/openshift/manifests /manifests
+COPY openshift/capi-operator-manifests /capi-operator-manifests
 
 ENTRYPOINT [ "/bin/cluster-api-provider-nutanix-controller-manager" ]
 

@@ -1,18 +1,11 @@
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
     cluster.x-k8s.io/v1beta1: v1beta1
-    clusterctl.cluster.x-k8s.io: ""
   name: nutanixclusters.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -365,27 +358,15 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
     cluster.x-k8s.io/v1beta1: v1beta1
-    clusterctl.cluster.x-k8s.io: ""
   name: nutanixmachines.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -953,27 +934,15 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
     cluster.x-k8s.io/v1beta1: v1beta1
-    clusterctl.cluster.x-k8s.io: ""
   name: nutanixmachinetemplates.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -1428,27 +1397,15 @@ spec:
         type: object
     served: true
     storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
     cluster.x-k8s.io/v1beta1: v1beta1
-    clusterctl.cluster.x-k8s.io: ""
   name: nutanixclustertemplates.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -1716,27 +1673,15 @@ spec:
         type: object
     served: true
     storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
     cluster.x-k8s.io/v1beta1: v1beta1
-    clusterctl.cluster.x-k8s.io: ""
     clusterctl.cluster.x-k8s.io/move: ""
   name: nutanixfailuredomains.infrastructure.cluster.x-k8s.io
 spec:
@@ -1895,38 +1840,20 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-controller-manager
   namespace: openshift-cluster-api
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-manager-role
 rules:
 - apiGroups:
@@ -2015,15 +1942,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -2037,14 +1957,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-leader-election-role
   namespace: openshift-cluster-api
 rules:
@@ -2083,15 +1997,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-leader-election-rolebinding
   namespace: openshift-cluster-api
 roleRef:
@@ -2106,14 +2013,8 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
     control-plane: controller-manager
   name: capx-controller-manager-metrics-service
   namespace: openshift-cluster-api
@@ -2129,14 +2030,8 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-proxy-role
 rules:
 - apiGroups:
@@ -2155,15 +2050,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-proxy-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -2177,14 +2065,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  annotations:
-    exclude.release.openshift.io/internal-openshift-hosted: "true"
-    include.release.openshift.io/self-managed-high-availability: "true"
-    include.release.openshift.io/single-node-developer: "true"
-    release.openshift.io/feature-set: CustomNoUpgrade,TechPreviewNoUpgrade
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-metrics-reader
 rules:
 - nonResourceURLs:
@@ -2212,7 +2094,6 @@ kind: ConfigMap
 metadata:
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-nutanix-endpoint
   namespace: openshift-cluster-api
 ---
@@ -2223,17 +2104,14 @@ kind: ConfigMap
 metadata:
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-pc-trusted-ca-bundle
   namespace: openshift-cluster-api
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
     control-plane: controller-manager
   name: capx-controller-manager
   namespace: openshift-cluster-api
@@ -2249,7 +2127,6 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: manager
         target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
-      creationTimestamp: null
       labels:
         cluster.x-k8s.io/provider: infrastructure-nutanix
         control-plane: controller-manager
@@ -2271,7 +2148,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: to.be/replaced:v99
+        image: registry.ci.openshift.org/openshift:nutanix-cluster-api-controllers
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -2340,7 +2217,6 @@ kind: ConfigMap
 metadata:
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
-    clusterctl.cluster.x-k8s.io: ""
   name: capx-manager-config
   namespace: openshift-cluster-api
 ---
