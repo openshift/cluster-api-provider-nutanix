@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
 	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/controllers"
@@ -51,6 +52,7 @@ func TestInitializeFlags(t *testing.T) {
 				"--rate-limiter-max-delay=10s",
 				"--rate-limiter-bucket-size=1000",
 				"--rate-limiter-qps=50",
+				"--feature-gates=DefaultToPlaceholderImageName=true,DefaultToPlaceholderImageUUID=true",
 			},
 			want: &options{
 				enableLeaderElection:    true,
@@ -134,6 +136,7 @@ func TestInitializeConfig(t *testing.T) {
 				"--rate-limiter-max-delay=10s",
 				"--rate-limiter-bucket-size=1000",
 				"--rate-limiter-qps=50",
+				"--feature-gates=DefaultToPlaceholderImageName=true,DefaultToPlaceholderImageUUID=true",
 				// Cluster API options.
 				"--insecure-diagnostics=true",
 				"--diagnostics-address=:9999",
@@ -306,6 +309,7 @@ func testRunManagerCommon(t *testing.T, ctrl *gomock.Controller) (*mockctlclient
 	}).AnyTimes()
 	mgr.EXPECT().Add(gomock.Any()).Return(nil).AnyTimes()
 	mgr.EXPECT().GetCache().Return(cache).AnyTimes()
+	mgr.EXPECT().GetWebhookServer().Return(webhook.NewServer(webhook.Options{Port: 0})).AnyTimes()
 
 	return mgr, config, testEnv
 }
@@ -545,6 +549,7 @@ func TestKubebuilderValidations(t *testing.T) {
 							MemorySize:     resource.Quantity{},
 							Cluster: infrav1.NutanixResourceIdentifier{
 								Type: infrav1.NutanixIdentifierUUID,
+								UUID: ptr.To("550e8400-e29b-41d4-a716-446655440000"),
 							},
 							Image: &infrav1.NutanixResourceIdentifier{
 								Type: infrav1.NutanixIdentifierName,
@@ -572,6 +577,7 @@ func TestKubebuilderValidations(t *testing.T) {
 							VCPUSockets:    1,
 							Cluster: infrav1.NutanixResourceIdentifier{
 								Type: infrav1.NutanixIdentifierUUID,
+								UUID: ptr.To("550e8400-e29b-41d4-a716-446655440001"),
 							},
 							MemorySize: resource.Quantity{},
 							ImageLookup: &infrav1.NutanixImageLookup{
@@ -599,6 +605,7 @@ func TestKubebuilderValidations(t *testing.T) {
 							VCPUSockets:    1,
 							Cluster: infrav1.NutanixResourceIdentifier{
 								Type: infrav1.NutanixIdentifierUUID,
+								UUID: ptr.To("550e8400-e29b-41d4-a716-446655440002"),
 							},
 							MemorySize:     resource.Quantity{},
 							SystemDiskSize: resource.Quantity{},
@@ -622,6 +629,7 @@ func TestKubebuilderValidations(t *testing.T) {
 							VCPUsPerSocket: 1,
 							Cluster: infrav1.NutanixResourceIdentifier{
 								Type: infrav1.NutanixIdentifierUUID,
+								UUID: ptr.To("550e8400-e29b-41d4-a716-446655440003"),
 							},
 							VCPUSockets: 1,
 							ImageLookup: &infrav1.NutanixImageLookup{

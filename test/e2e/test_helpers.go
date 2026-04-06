@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nutanix-cloud-native/prism-go-client/converged"
+	v4Converged "github.com/nutanix-cloud-native/prism-go-client/converged/v4"
 	credentialTypes "github.com/nutanix-cloud-native/prism-go-client/environment/credentials"
 	prismGoClientV3 "github.com/nutanix-cloud-native/prism-go-client/v3"
 	. "github.com/onsi/gomega" //nolint:staticcheck // gomega is used with . imports conventionally
@@ -36,7 +38,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	capiv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capiv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck // suppress complaining on Deprecated package
+	capiv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -46,6 +49,7 @@ import (
 
 	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
 	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/controllers"
+	vmmconfig "github.com/nutanix/ntnx-api-golang-clients/vmm-go-client/v4/models/vmm/v4/ahv/config"
 )
 
 const (
@@ -60,11 +64,9 @@ const (
 	defaultSystemDiskSize = "40Gi"
 	defaultBootType       = "legacy"
 
-	categoryKeyVarKey   = "NUTANIX_ADDITIONAL_CATEGORY_KEY"
-	categoryValueVarKey = "NUTANIX_ADDITIONAL_CATEGORY_VALUE"
-	imageVarKey         = "NUTANIX_MACHINE_TEMPLATE_IMAGE_NAME"
-	clusterVarKey       = "NUTANIX_PRISM_ELEMENT_CLUSTER_NAME"
-	subnetVarKey        = "NUTANIX_SUBNET_NAME"
+	imageVarKey   = "NUTANIX_MACHINE_TEMPLATE_IMAGE_NAME"
+	clusterVarKey = "NUTANIX_PRISM_ELEMENT_CLUSTER_NAME"
+	subnetVarKey  = "NUTANIX_SUBNET_NAME"
 
 	nameType = "name"
 
@@ -133,12 +135,12 @@ type testHelperInterface interface {
 	deployClusterAndWait(params deployClusterParams, clusterResources *clusterctl.ApplyClusterTemplateAndWaitResult)
 	deleteSecret(params deleteSecretParams)
 	deleteAllClustersAndWait(ctx context.Context, specName string, bootstrapClusterProxy framework.ClusterProxy, namespace *corev1.Namespace, intervalsGetter func(spec, key string) []interface{})
-	deleteClusterAndWait(ctx context.Context, specName string, bootstrapClusterProxy framework.ClusterProxy, cluster *capiv1.Cluster, intervalsGetter func(spec, key string) []interface{})
-	findGPU(ctx context.Context, gpuName string) *prismGoClientV3.GPU
+	deleteClusterAndWait(ctx context.Context, specName string, bootstrapClusterProxy framework.ClusterProxy, cluster *capiv1beta2.Cluster, intervalsGetter func(spec, key string) []interface{})
+	findGPU(ctx context.Context, gpuName string) *vmmconfig.Gpu
 	generateNMTName(clusterName string) string
 	generateNMTProviderID(clusterName string) string
 	generateTestClusterName(specName string) string
-	getMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *capiv1.MachineList
+	getMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *capiv1beta2.MachineList
 	getNutanixMachineForCluster(ctx context.Context, clusterName, namespace, machineName string, bootstrapClusterProxy framework.ClusterProxy) *infrav1.NutanixMachine
 	getNutanixMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *infrav1.NutanixMachineList
 	getNutanixClusterByName(ctx context.Context, input getNutanixClusterByNameInput) *infrav1.NutanixCluster
@@ -163,17 +165,19 @@ type testHelperInterface interface {
 }
 
 type testHelper struct {
-	nutanixClient *prismGoClientV3.Client
-	e2eConfig     *clusterctl.E2EConfig
+	nutanixClient   *prismGoClientV3.Client
+	convergedClient *v4Converged.Client
+	e2eConfig       *clusterctl.E2EConfig
 }
 
 func newTestHelper(e2eConfig *clusterctl.E2EConfig) testHelperInterface {
-	c, err := initNutanixClient(*e2eConfig)
+	v3client, convergedClient, err := initNutanixClient(*e2eConfig)
 	Expect(err).ShouldNot(HaveOccurred())
 
 	return testHelper{
-		nutanixClient: c,
-		e2eConfig:     e2eConfig,
+		nutanixClient:   v3client,
+		convergedClient: convergedClient,
+		e2eConfig:       e2eConfig,
 	}
 }
 
@@ -239,16 +243,16 @@ func (t testHelper) createUUIDNMT(ctx context.Context, clusterName, namespace st
 	clusterVarValue := t.getVariableFromE2eConfig(clusterVarKey)
 	subnetVarValue := t.getVariableFromE2eConfig(subnetVarKey)
 
-	clusterUUID, err := controllers.GetPEUUID(ctx, t.nutanixClient, &clusterVarValue, nil)
+	clusterUUID, err := controllers.GetPEUUID(ctx, t.convergedClient, &clusterVarValue, nil)
 	Expect(err).ToNot(HaveOccurred())
 
-	image, err := controllers.GetImage(ctx, t.nutanixClient, infrav1.NutanixResourceIdentifier{
+	image, err := controllers.GetImage(ctx, t.convergedClient, infrav1.NutanixResourceIdentifier{
 		Type: infrav1.NutanixIdentifierName,
 		Name: ptr.To(imageVarValue),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	subnetUUID, err := controllers.GetSubnetUUID(ctx, t.nutanixClient, clusterUUID, &subnetVarValue, nil)
+	subnetUUID, err := controllers.GetSubnetUUID(ctx, t.convergedClient, clusterUUID, &subnetVarValue, nil)
 	Expect(err).ToNot(HaveOccurred())
 
 	return &infrav1.NutanixMachineTemplate{
@@ -266,7 +270,7 @@ func (t testHelper) createUUIDNMT(ctx context.Context, clusterName, namespace st
 					MemorySize:     resource.MustParse(defaultMemorySize),
 					Image: &infrav1.NutanixResourceIdentifier{
 						Type: infrav1.NutanixIdentifierUUID,
-						UUID: image.Metadata.UUID,
+						UUID: image.ExtId,
 					},
 					Cluster: infrav1.NutanixResourceIdentifier{
 						Type: infrav1.NutanixIdentifierUUID,
@@ -299,13 +303,11 @@ func (t testHelper) createUUIDProjectNMT(ctx context.Context, clusterName, names
 }
 
 type createGPUNMTParams struct {
-	gpuVendorEnvKey string
-	gpuNameEnvKey   string
+	gpuNameEnvKey string
 }
 
 func (t testHelper) createNameGPUNMT(ctx context.Context, clusterName, namespace string, params createGPUNMTParams) *infrav1.NutanixMachineTemplate {
 	gpuName := t.getVariableFromE2eConfig(params.gpuNameEnvKey)
-	_ = t.getVariableFromE2eConfig(params.gpuVendorEnvKey)
 
 	nmt := t.createDefaultNMT(clusterName, namespace)
 	nmt.Spec.Template.Spec.GPUs = []infrav1.NutanixGPU{
@@ -317,21 +319,24 @@ func (t testHelper) createNameGPUNMT(ctx context.Context, clusterName, namespace
 	return nmt
 }
 
-func (t testHelper) findGPU(ctx context.Context, gpuName string) *prismGoClientV3.GPU {
+func (t testHelper) findGPU(ctx context.Context, gpuName string) *vmmconfig.Gpu {
 	clusterVarValue := t.getVariableFromE2eConfig(clusterVarKey)
 
-	clusterUUID, err := controllers.GetPEUUID(ctx, t.nutanixClient, &clusterVarValue, nil)
+	clusterUUID, err := controllers.GetPEUUID(ctx, t.convergedClient, &clusterVarValue, nil)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(clusterUUID).ToNot(BeNil())
-	allGpus, err := controllers.GetGPUsForPE(ctx, t.nutanixClient, clusterUUID)
+	allUnusedGpus, err := controllers.GetGPUsForPE(ctx, t.convergedClient, clusterUUID, infrav1.NutanixGPU{
+		Type: infrav1.NutanixGPUIdentifierName,
+		Name: &gpuName,
+	})
 	Expect(err).ToNot(HaveOccurred())
-	Expect(allGpus).ToNot(HaveLen(0))
+	Expect(allUnusedGpus).ToNot(HaveLen(0))
 
-	for _, gpu := range allGpus {
+	for _, gpu := range allUnusedGpus {
 		if gpu == nil {
 			continue
 		}
-		if gpu.Name == gpuName {
+		if *gpu.Name == gpuName {
 			return gpu
 		}
 	}
@@ -347,7 +352,7 @@ func (t testHelper) createDeviceIDGPUNMT(ctx context.Context, clusterName, names
 	nmt.Spec.Template.Spec.GPUs = []infrav1.NutanixGPU{
 		{
 			Type:     infrav1.NutanixGPUIdentifierDeviceID,
-			DeviceID: foundGpu.DeviceID,
+			DeviceID: ptr.To(int64(*foundGpu.DeviceId)),
 		},
 	}
 	return nmt
@@ -371,7 +376,7 @@ func (t testHelper) createDefaultNutanixCluster(clusterName, namespace, controlP
 			Namespace: namespace,
 		},
 		Spec: infrav1.NutanixClusterSpec{
-			ControlPlaneEndpoint: capiv1.APIEndpoint{
+			ControlPlaneEndpoint: capiv1beta1.APIEndpoint{
 				Host: controlPlaneEndpointIP,
 				Port: controlPlanePort,
 			},
@@ -493,7 +498,7 @@ func (t testHelper) deleteAllClustersAndWait(ctx context.Context, specName strin
 	}, intervalsGetter(specName, "wait-delete-cluster")...)
 }
 
-func (t testHelper) deleteClusterAndWait(ctx context.Context, specName string, bootstrapClusterProxy framework.ClusterProxy, cluster *capiv1.Cluster, intervalsGetter func(spec, key string) []interface{}) {
+func (t testHelper) deleteClusterAndWait(ctx context.Context, specName string, bootstrapClusterProxy framework.ClusterProxy, cluster *capiv1beta2.Cluster, intervalsGetter func(spec, key string) []interface{}) {
 	framework.DeleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
 		ClusterProxy:         bootstrapClusterProxy,
 		ClusterctlConfigPath: clusterctlConfigPath,
@@ -529,9 +534,9 @@ func (t testHelper) getNutanixClusterByName(ctx context.Context, input getNutani
 	return cluster
 }
 
-func (t testHelper) getMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *capiv1.MachineList {
-	machineList := &capiv1.MachineList{}
-	labels := map[string]string{capiv1.ClusterNameLabel: clusterName}
+func (t testHelper) getMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *capiv1beta2.MachineList {
+	machineList := &capiv1beta2.MachineList{}
+	labels := map[string]string{capiv1beta1.ClusterNameLabel: clusterName}
 	err := bootstrapClusterProxy.GetClient().List(ctx, machineList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	Expect(err).ShouldNot(HaveOccurred())
 	return machineList
@@ -551,19 +556,19 @@ func (t testHelper) getNutanixMachineForCluster(ctx context.Context, clusterName
 
 func (t testHelper) getNutanixMachinesForCluster(ctx context.Context, clusterName, namespace string, bootstrapClusterProxy framework.ClusterProxy) *infrav1.NutanixMachineList {
 	machineList := &infrav1.NutanixMachineList{}
-	labels := map[string]string{capiv1.ClusterNameLabel: clusterName}
+	labels := map[string]string{capiv1beta1.ClusterNameLabel: clusterName}
 	err := bootstrapClusterProxy.GetClient().List(ctx, machineList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	Expect(err).ShouldNot(HaveOccurred())
 	return machineList
 }
 
 func (t testHelper) getNutanixVMsForCluster(ctx context.Context, clusterName, namespace string) []*prismGoClientV3.VMIntentResponse {
-	nutanixMachines := t.getMachinesForCluster(ctx, clusterName, namespace, bootstrapClusterProxy)
+	nutanixMachines := t.getNutanixMachinesForCluster(ctx, clusterName, namespace, bootstrapClusterProxy)
 	vms := make([]*prismGoClientV3.VMIntentResponse, 0)
-	for _, m := range nutanixMachines.Items {
-		machineProviderID := m.Spec.ProviderID
-		Expect(machineProviderID).NotTo(BeNil())
-		machineVmUUID := t.stripNutanixIDFromProviderID(*machineProviderID)
+	for _, nm := range nutanixMachines.Items {
+		// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+		machineVmUUID := nm.Status.VmUUID
+		Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 		vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 		Expect(err).ShouldNot(HaveOccurred())
 		vms = append(vms, vm)
@@ -596,31 +601,16 @@ func (t testHelper) getVariableFromE2eConfig(variableKey string) string {
 }
 
 func (t testHelper) getDefaultStorageContainerNameAndUuid(ctx context.Context) (string, string, error) {
-	scName := ""
-	scUUID := ""
+	peName := t.getVariableFromE2eConfig(clusterVarKey)
 
-	scResponse, err := controllers.ListStorageContainers(ctx, t.nutanixClient)
+	scResponse, err := t.convergedClient.StorageContainers.List(ctx, converged.WithFilter(fmt.Sprintf("clusterName eq '%s'", peName)))
 	if err != nil {
 		return "", "", err
 	}
 
-	if len(scResponse) == 0 {
-		return "", "", fmt.Errorf("no storage containers found")
-	}
-
-	peName := t.getVariableFromE2eConfig(clusterVarKey)
-
 	for _, sc := range scResponse {
-		if strings.Contains(*sc.Name, "default") && strings.EqualFold(*sc.ClusterName, peName) {
-			if sc.Name != nil {
-				scName = *sc.Name
-			}
-
-			if sc.UUID != nil {
-				scUUID = *sc.UUID
-			}
-
-			return scName, scUUID, nil
+		if sc.Name != nil && sc.ContainerExtId != nil && strings.Contains(*sc.Name, "default") {
+			return *sc.Name, *sc.ContainerExtId, nil
 		}
 	}
 
@@ -637,18 +627,18 @@ func (t testHelper) stripNutanixIDFromProviderID(providerID string) string {
 }
 
 func (t testHelper) verifyCategoryExists(ctx context.Context, categoryKey, categoryValue string) {
-	_, err := t.nutanixClient.V3.GetCategoryValue(ctx, categoryKey, categoryValue)
+	_, err := t.convergedClient.Categories.List(ctx, converged.WithFilter(fmt.Sprintf("key eq '%s' and value eq '%s'", categoryKey, categoryValue)))
 	Expect(err).ShouldNot(HaveOccurred())
 }
 
 func (t testHelper) verifyCategoriesNutanixMachines(ctx context.Context, clusterName, namespace string, expectedCategories map[string][]string) {
 	Eventually(
 		func(g Gomega) {
-			nutanixMachines := t.getMachinesForCluster(ctx, clusterName, namespace, bootstrapClusterProxy)
-			for _, m := range nutanixMachines.Items {
-				machineProviderID := m.Spec.ProviderID
-				g.Expect(machineProviderID).NotTo(BeNil())
-				machineVmUUID := t.stripNutanixIDFromProviderID(*machineProviderID)
+			nutanixMachines := t.getNutanixMachinesForCluster(ctx, clusterName, namespace, bootstrapClusterProxy)
+			for _, nm := range nutanixMachines.Items {
+				// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+				machineVmUUID := nm.Status.VmUUID
+				g.Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 				vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 				g.Expect(err).ShouldNot(HaveOccurred())
 				categoriesMappingMeta := vm.Metadata.CategoriesMapping
@@ -680,14 +670,14 @@ type verifyResourceConfigOnNutanixMachinesParams struct {
 func (t testHelper) verifyResourceConfigOnNutanixMachines(ctx context.Context, params verifyResourceConfigOnNutanixMachinesParams) {
 	Eventually(
 		func(g Gomega) {
-			nutanixMachines := t.getMachinesForCluster(ctx,
+			nutanixMachines := t.getNutanixMachinesForCluster(ctx,
 				params.clusterName,
 				params.namespace.Name,
 				params.bootstrapClusterProxy)
-			for _, m := range nutanixMachines.Items {
-				machineProviderID := m.Spec.ProviderID
-				g.Expect(machineProviderID).NotTo(BeNil())
-				machineVmUUID := t.stripNutanixIDFromProviderID(*machineProviderID)
+			for _, nm := range nutanixMachines.Items {
+				// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+				machineVmUUID := nm.Status.VmUUID
+				g.Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 				vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 				g.Expect(err).ShouldNot(HaveOccurred())
 				vmMemorySizeInMib := *vm.Status.Resources.MemorySizeMib
@@ -708,12 +698,12 @@ type verifyConditionParams struct {
 	bootstrapClusterProxy framework.ClusterProxy
 	clusterName           string
 	namespace             *corev1.Namespace
-	expectedCondition     capiv1.Condition
+	expectedCondition     capiv1beta1.Condition
 }
 
 func (t testHelper) verifyConditionOnNutanixCluster(params verifyConditionParams) {
 	Eventually(
-		func() []capiv1.Condition {
+		func() []capiv1beta1.Condition {
 			cluster := t.getNutanixClusterByName(ctx, getNutanixClusterByNameInput{
 				Getter:    params.bootstrapClusterProxy.GetClient(),
 				Name:      params.clusterName,
@@ -793,14 +783,16 @@ func (t testHelper) verifyLegacyFailureDomainsOnClusterMachines(ctx context.Cont
 			nutanixMachines := t.getMachinesForCluster(ctx, params.clusterName, params.namespace.Name, params.bootstrapClusterProxy)
 			for _, m := range nutanixMachines.Items {
 				machineSpec := m.Spec
-				if *machineSpec.FailureDomain == fdName {
+				if machineSpec.FailureDomain == fdName {
 					// failure domain had a match
 					match = true
 					// Search for failure domain
 					fd := controllers.GetLegacyFailureDomainFromNutanixCluster(fdName, nutanixCluster)
 					Expect(fd).ToNot(BeNil())
-					// Search for VM
-					machineVmUUID := t.stripNutanixIDFromProviderID(*machineSpec.ProviderID)
+					// Get NutanixMachine and use Status.VmUUID to search for VM
+					nutanixMachine := t.getNutanixMachineForCluster(ctx, params.clusterName, params.namespace.Name, m.Name, params.bootstrapClusterProxy)
+					machineVmUUID := nutanixMachine.Status.VmUUID
+					Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nutanixMachine.Name)
 					vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(vm).ToNot(BeNil())
@@ -831,7 +823,7 @@ func (t testHelper) verifyNewFailureDomainsOnClusterMachines(ctx context.Context
 			nutanixMachines := t.getMachinesForCluster(ctx, params.clusterName, params.namespace.Name, params.bootstrapClusterProxy)
 			for _, m := range nutanixMachines.Items {
 				machineSpec := m.Spec
-				if *machineSpec.FailureDomain == fdName {
+				if machineSpec.FailureDomain == fdName {
 					// failure domain had a match
 					match = true
 
@@ -842,8 +834,10 @@ func (t testHelper) verifyNewFailureDomainsOnClusterMachines(ctx context.Context
 					err := params.bootstrapClusterProxy.GetClient().Get(ctx, fdKey, fdObj)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(fdObj).ToNot(BeNil())
-					// Search for VM
-					machineVmUUID := t.stripNutanixIDFromProviderID(*machineSpec.ProviderID)
+					// Get NutanixMachine and use Status.VmUUID to search for VM
+					nutanixMachine := t.getNutanixMachineForCluster(ctx, params.clusterName, params.namespace.Name, m.Name, params.bootstrapClusterProxy)
+					machineVmUUID := nutanixMachine.Status.VmUUID
+					Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nutanixMachine.Name)
 					vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(vm).ToNot(BeNil())
@@ -864,7 +858,6 @@ func (t testHelper) verifyNewFailureDomainsOnClusterMachines(ctx context.Context
 type verifyFailureMessageOnClusterMachinesParams struct {
 	clusterName            string
 	namespace              *corev1.Namespace
-	expectedPhase          string
 	expectedFailureMessage string
 	bootstrapClusterProxy  framework.ClusterProxy
 }
@@ -874,7 +867,7 @@ func (t testHelper) verifyFailureMessageOnClusterMachines(ctx context.Context, p
 		nutanixMachines := t.getMachinesForCluster(ctx, params.clusterName, params.namespace.Name, params.bootstrapClusterProxy)
 		for _, m := range nutanixMachines.Items {
 			machineStatus := m.Status
-			if machineStatus.Phase == params.expectedPhase && machineStatus.FailureMessage != nil && strings.Contains(*machineStatus.FailureMessage, params.expectedFailureMessage) { //nolint:staticcheck // deprecated field needed for compatibility
+			if machineStatus.Deprecated.V1Beta1.FailureMessage != nil && strings.Contains(*machineStatus.Deprecated.V1Beta1.FailureMessage, params.expectedFailureMessage) { //nolint:staticcheck // deprecated field needed for compatibility
 				return true
 			}
 		}
@@ -891,10 +884,10 @@ type verifyProjectNutanixMachinesParams struct {
 
 func (t testHelper) verifyProjectNutanixMachines(ctx context.Context, params verifyProjectNutanixMachinesParams) {
 	nutanixMachines := t.getNutanixMachinesForCluster(ctx, params.clusterName, params.namespace, params.bootstrapClusterProxy)
-	for _, m := range nutanixMachines.Items {
-		machineProviderID := m.Spec.ProviderID
-		Expect(machineProviderID).NotTo(BeEmpty())
-		machineVmUUID := t.stripNutanixIDFromProviderID(machineProviderID)
+	for _, nm := range nutanixMachines.Items {
+		// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+		machineVmUUID := nm.Status.VmUUID
+		Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 		vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 		Expect(err).ShouldNot(HaveOccurred())
 		assignedProjectName := *vm.Metadata.ProjectReference.Name
@@ -909,12 +902,25 @@ type verifyGPUNutanixMachinesParams struct {
 	bootstrapClusterProxy framework.ClusterProxy
 }
 
+func GpuVendorToString(vendor *vmmconfig.GpuVendor) string {
+	switch *vendor {
+	case vmmconfig.GPUVENDOR_NVIDIA:
+		return "NVIDIA"
+	case vmmconfig.GPUVENDOR_INTEL:
+		return "INTEL"
+	case vmmconfig.GPUVENDOR_AMD:
+		return "AMD"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 func (t testHelper) verifyGPUNutanixMachines(ctx context.Context, params verifyGPUNutanixMachinesParams) {
 	nutanixMachines := t.getNutanixMachinesForCluster(ctx, params.clusterName, params.namespace, params.bootstrapClusterProxy)
-	for _, m := range nutanixMachines.Items {
-		machineProviderID := m.Spec.ProviderID
-		Expect(machineProviderID).NotTo(BeEmpty())
-		machineVmUUID := t.stripNutanixIDFromProviderID(machineProviderID)
+	for _, nm := range nutanixMachines.Items {
+		// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+		machineVmUUID := nm.Status.VmUUID
+		Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 		vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 		Expect(err).ShouldNot(HaveOccurred())
 		foundGpu := t.findGPU(ctx, params.gpuName)
@@ -926,8 +932,8 @@ func (t testHelper) verifyGPUNutanixMachines(ctx context.Context, params verifyG
 				gstruct.MatchFields(
 					gstruct.IgnoreExtras,
 					gstruct.Fields{
-						"DeviceID": HaveValue(Equal(*foundGpu.DeviceID)),
-						"Vendor":   HaveValue(Equal(foundGpu.Vendor)),
+						"DeviceID": HaveValue(Equal(int64(*foundGpu.DeviceId))),
+						"Vendor":   HaveValue(Equal(GpuVendorToString(foundGpu.Vendor))),
 					},
 				),
 			)))
@@ -943,10 +949,10 @@ type verifyDisksOnNutanixMachinesParams struct {
 
 func (t testHelper) verifyDisksOnNutanixMachines(ctx context.Context, params verifyDisksOnNutanixMachinesParams) {
 	nutanixMachines := t.getNutanixMachinesForCluster(ctx, params.clusterName, params.namespace, params.bootstrapClusterProxy)
-	for _, m := range nutanixMachines.Items {
-		machineProviderID := m.Spec.ProviderID
-		Expect(machineProviderID).NotTo(BeEmpty())
-		machineVmUUID := t.stripNutanixIDFromProviderID(machineProviderID)
+	for _, nm := range nutanixMachines.Items {
+		// Use the actual VM UUID from NutanixMachine.Status.VmUUID instead of providerID
+		machineVmUUID := nm.Status.VmUUID
+		Expect(machineVmUUID).NotTo(BeEmpty(), "expected NutanixMachine %s to have Status.VmUUID set", nm.Name)
 		vm, err := t.nutanixClient.V3.GetVM(ctx, machineVmUUID)
 		Expect(err).ShouldNot(HaveOccurred())
 		disks := vm.Status.Resources.DiskList

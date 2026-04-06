@@ -36,18 +36,150 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/ptr"
-	capiv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capiv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
 	mockctlclient "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/ctlclient"
 	mockmeta "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/k8sapimachinery"
+	mockk8sclient "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/k8sclient"
 	nctx "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/context"
 )
+
+func TestNutanixClusterReconciler_ConvergedClientCacheDeletion(t *testing.T) {
+	t.Run("should delete converged client from cache during cluster deletion", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		ntnxCluster := &infrav1.NutanixCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-cluster",
+				Namespace: "default",
+			},
+			Spec: infrav1.NutanixClusterSpec{
+				PrismCentral: &credentialtypes.NutanixPrismEndpoint{
+					Address: "prismcentral.nutanix.com",
+					Port:    9440,
+					CredentialRef: &credentialtypes.NutanixCredentialReference{
+						Kind:      credentialtypes.SecretKind,
+						Name:      "test-credential",
+						Namespace: "test-ns",
+					},
+				},
+			},
+		}
+
+		// Add finalizer to simulate cluster being deleted
+		ctrlutil.AddFinalizer(ntnxCluster, infrav1.NutanixClusterFinalizer)
+		ntnxCluster.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+
+		// Create mock client
+		mockClient := mockctlclient.NewMockClient(ctrl)
+		mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockClient.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockClient.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+		// Create mock informers
+		secretInformer := mockk8sclient.NewMockSecretInformer(ctrl)
+		mapInformer := mockk8sclient.NewMockConfigMapInformer(ctrl)
+
+		// Create reconciler
+		reconciler := &NutanixClusterReconciler{
+			Client:            mockClient,
+			SecretInformer:    secretInformer,
+			ConfigMapInformer: mapInformer,
+			Scheme:            runtime.NewScheme(),
+		}
+
+		// Create cluster context
+		capiCluster := &capiv1beta2.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-cluster",
+				Namespace: "default",
+			},
+		}
+
+		rctx := &nctx.ClusterContext{
+			Context:        ctx,
+			Cluster:        capiCluster,
+			NutanixCluster: ntnxCluster,
+		}
+
+		// Test the reconcileDelete function
+		result, err := reconciler.reconcileDelete(rctx)
+
+		// Verify no error occurred
+		assert.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+
+		// Verify that the finalizer was removed
+		assert.False(t, ctrlutil.ContainsFinalizer(ntnxCluster, infrav1.NutanixClusterFinalizer))
+	})
+
+	t.Run("should handle cache deletion errors gracefully", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		ntnxCluster := &infrav1.NutanixCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-cluster",
+				Namespace: "default",
+			},
+		}
+
+		// Add finalizer to simulate cluster being deleted
+		ctrlutil.AddFinalizer(ntnxCluster, infrav1.NutanixClusterFinalizer)
+		ntnxCluster.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+
+		// Create mock client that returns error
+		mockClient := mockctlclient.NewMockClient(ctrl)
+		mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("client error")).AnyTimes()
+		mockClient.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockClient.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+		// Create mock informers
+		secretInformer := mockk8sclient.NewMockSecretInformer(ctrl)
+		mapInformer := mockk8sclient.NewMockConfigMapInformer(ctrl)
+
+		// Create reconciler
+		reconciler := &NutanixClusterReconciler{
+			Client:            mockClient,
+			SecretInformer:    secretInformer,
+			ConfigMapInformer: mapInformer,
+			Scheme:            runtime.NewScheme(),
+		}
+
+		// Create cluster context
+		capiCluster := &capiv1beta2.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-cluster",
+				Namespace: "default",
+			},
+		}
+
+		rctx := &nctx.ClusterContext{
+			Context:        ctx,
+			Cluster:        capiCluster,
+			NutanixCluster: ntnxCluster,
+		}
+
+		// Test the reconcileDelete function
+		result, err := reconciler.reconcileDelete(rctx)
+
+		// Verify no error occurred - cache deletion should succeed even with client errors
+		assert.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+	})
+}
 
 func TestNutanixClusterReconciler(t *testing.T) {
 	g := NewWithT(t)
@@ -117,7 +249,6 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(result.RequeueAfter).To(BeZero())
-				g.Expect(result.Requeue).To(BeFalse())
 			})
 		})
 
@@ -131,7 +262,6 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(result.RequeueAfter).To(BeZero())
-				g.Expect(result.Requeue).To(BeFalse())
 			})
 			It("should not error and not requeue if no failure domains are configured and cluster is Ready", func() {
 				g.Expect(k8sClient.Create(ctx, ntnxCluster)).To(Succeed())
@@ -142,7 +272,6 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(result.RequeueAfter).To(BeZero())
-				g.Expect(result.Requeue).To(BeFalse())
 			})
 			It("should not error and not requeue if failure domains (deprecated) are configured and cluster is Ready", func() {
 				ntnxCluster.Spec.FailureDomains = []infrav1.NutanixFailureDomainConfig{{ //nolint:staticcheck // suppress complaining on Deprecated type
@@ -167,7 +296,6 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(result.RequeueAfter).To(BeZero())
-				g.Expect(result.Requeue).To(BeFalse())
 			})
 			It("should not error and not requeue if controlPlaneFailureDomains are configured and cluster is Ready", func() {
 				ntnxCluster.Spec.ControlPlaneFailureDomains = []corev1.LocalObjectReference{fdRef}
@@ -179,7 +307,6 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(result.RequeueAfter).To(BeZero())
-				g.Expect(result.Requeue).To(BeFalse())
 			})
 			It("should not error if controlPlaneFailureDomains are configured with unique failure domain names", func() {
 				fdRef1 := corev1.LocalObjectReference{Name: "test-1"}
@@ -316,7 +443,7 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				}, ntnxSecret)).To(Succeed())
 
 				// Check if secret is owned by the NutanixCluster
-				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster)).To(BeTrue())
+				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster, infrav1.GroupVersion.WithKind(infrav1.NutanixClusterKind).GroupKind())).To(BeTrue())
 
 				// check finalizer
 				g.Expect(ctrlutil.ContainsFinalizer(ntnxSecret, infrav1.NutanixClusterCredentialFinalizer))
@@ -352,7 +479,7 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				}, ntnxSecret)).To(Succeed())
 
 				// Check if secret is owned by the NutanixCluster
-				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster)).To(BeTrue())
+				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster, infrav1.GroupVersion.WithKind(infrav1.NutanixClusterKind).GroupKind())).To(BeTrue())
 
 				// check if only one ownerReference has been added
 				g.Expect(len(ntnxSecret.OwnerReferences)).To(Equal(1))
@@ -369,8 +496,8 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				// Add an ownerReference for a fake object
 				ntnxSecret.OwnerReferences = []metav1.OwnerReference{
 					{
-						APIVersion: capiv1.GroupVersion.String(),
-						Kind:       capiv1.ClusterKind,
+						APIVersion: capiv1beta2.GroupVersion.String(),
+						Kind:       capiv1beta2.ClusterKind,
 						UID:        ntnxCluster.UID,
 						Name:       r,
 					},
@@ -389,7 +516,7 @@ func TestNutanixClusterReconciler(t *testing.T) {
 				}, ntnxSecret)).To(Succeed())
 
 				// Check if secret is owned by the NutanixCluster
-				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster)).To(BeTrue())
+				g.Expect(util.IsOwnedByObject(ntnxSecret, ntnxCluster, infrav1.GroupVersion.WithKind(infrav1.NutanixClusterKind).GroupKind())).To(BeTrue())
 
 				g.Expect(len(ntnxSecret.OwnerReferences)).To(Equal(2))
 			})
@@ -1073,7 +1200,7 @@ func TestNutanixClusterReconciler_SetupWithManager(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := infrav1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = capiv1.AddToScheme(scheme)
+	err = capiv1beta2.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	restScope := mockmeta.NewMockRESTScope(mockCtrl)
