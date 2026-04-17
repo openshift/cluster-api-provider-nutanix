@@ -17,7 +17,7 @@ echo "Installing mockgen@${MOCKGEN_VERSION}"
 go install -mod=mod "go.uber.org/mock/mockgen@${MOCKGEN_VERSION}"
 
 # setup-envtest is implicitly available in the nutanix-cloud-native/cluster-api-provider-nutanix CI environment.
-SETUP_ENVTEST_VERSION="release-0.16"
+SETUP_ENVTEST_VERSION="release-0.23"
 echo "Installing setup-envtest@${SETUP_ENVTEST_VERSION}"
 go install -mod=mod "sigs.k8s.io/controller-runtime/tools/setup-envtest@${SETUP_ENVTEST_VERSION}"
 
