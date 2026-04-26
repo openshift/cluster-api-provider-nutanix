@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -28,9 +27,10 @@ import (
 )
 
 const (
-	basic   = "basic"
-	eTag    = "ETag"
-	ifMatch = "If-Match"
+	basic      = "basic"
+	eTag       = "ETag"
+	ifMatch    = "If-Match"
+	sdkVersion = "v4.2"
 )
 
 var (
@@ -38,8 +38,8 @@ var (
 	xmlCheck                = regexp.MustCompile(`(?i:(?:application|text)/xml)`)
 	uriCheck                = regexp.MustCompile(`/(?P<namespace>[-\w]+)/v\d+\.\d+(\.[a|b]\d+)?/(?P<suffix>.*)`)
 	contentDispositionCheck = regexp.MustCompile("attachment;\\s*filename=\"(.*)\"")
-	retryStatusList         = []int{408, 503, 504}
-	userAgent               = "Nutanix-networking/v4.0.2-beta.1"
+	retryStatusList         = []int{408, 429, 503, 504}
+	userAgent               = "Nutanix-networking/v4.2.1"
 )
 
 /*
@@ -53,39 +53,45 @@ var (
     Debug (optional) : flag to enable debug logging (default : empty)
     VerifySSL (optional) : Verify SSL certificate of cluster (default: true)
     MaxRetryAttempts (optional) : Maximum number of retry attempts to be made at a time (default: 5)
-    ReadTimeout (optional) : Read timeout for all operations in milliseconds
-    ConnectTimeout (optional) : Connection timeout for all operations in milliseconds
+    MaxRedirects (optional) : Maximum number of redirect attempts to be made at a time (default: 10)
+    ReadTimeout (optional) : Read timeout for all operations (default: 30 sec)
+    ConnectTimeout (optional) : Connection timeout for all operations (default: 30 sec)
     RetryInterval (optional) : Interval between successive retry attempts (default: 3 sec)
     DownloadDirectory (optional) : Directory location on local for files to download (default: Current Directory)
     DownloadChunkSize (optional) : Chunk size in bytes for files to download (default: 8*1024 bytes)
     LoggerFile (optional) : Log file to write activity logs
+    AllowVersionNegotiation (optional) : Flag to enable version negotiation
 */
 type ApiClient struct {
-	Scheme            string `json:"scheme,omitempty"`
-	Host              string `json:"host,omitempty"`
-	Port              int    `json:"port,omitempty"`
-	Username          string `json:"username,omitempty"`
-	Password          string `json:"password,omitempty"`
-	Debug             bool   `json:"debug,omitempty"`
-	VerifySSL         bool
-	Proxy             *Proxy
-	MaxRetryAttempts  int           `json:"maxRetryAttempts,omitempty"`
-	ReadTimeout       time.Duration `json:"readTimeout,omitempty"`
-	ConnectTimeout    time.Duration `json:"connectTimeout,omitempty"`
-	RetryInterval     time.Duration `json:"retryInterval,omitempty"`
-	DownloadDirectory string        `json:"downloadDirectory,omitempty"`
-	DownloadChunkSize int           `json:"downloadChunkSize,omitempty"`
-	LoggerFile        string        `json:"loggerFile,omitempty"`
-	defaultHeaders    map[string]string
-	retryClient       *retryablehttp.Client
-	httpClient        *http.Client
-	dialer            *net.Dialer
-	authentication    map[string]interface{}
-	cookie            string
-	refreshCookie     bool
-	previousAuth      string
-	basicAuth         *BasicAuth
-	logger            *logrus.Logger
+	Scheme                  string `json:"scheme,omitempty"`
+	Host                    string `json:"host,omitempty"`
+	Port                    int    `json:"port,omitempty"`
+	Username                string `json:"username,omitempty"`
+	Password                string `json:"password,omitempty"`
+	Debug                   bool   `json:"debug,omitempty"`
+	VerifySSL               bool
+	Proxy                   *Proxy
+	MaxRetryAttempts        int           `json:"maxRetryAttempts,omitempty"`
+	MaxRedirects            int           `json:"maxRedirects,omitempty"`
+	ReadTimeout             time.Duration `json:"readTimeout,omitempty"`
+	ConnectTimeout          time.Duration `json:"connectTimeout,omitempty"`
+	RetryInterval           time.Duration `json:"retryInterval,omitempty"`
+	DownloadDirectory       string        `json:"downloadDirectory,omitempty"`
+	DownloadChunkSize       int           `json:"downloadChunkSize,omitempty"`
+	LoggerFile              string        `json:"loggerFile,omitempty"`
+	AllowVersionNegotiation bool          `json:"allowVersionNegotiation,omitempty"`
+	negotiatedVersion       string
+	negotiationCompleted    bool
+	defaultHeaders          map[string]string
+	retryClient             *retryablehttp.Client
+	httpClient              *http.Client
+	dialer                  *net.Dialer
+	authentication          map[string]interface{}
+	cookie                  string
+	refreshCookie           bool
+	previousAuth            string
+	basicAuth               *BasicAuth
+	logger                  *logrus.Logger
 
 	// maxIdleConns controls the maximum number of idle (keep-alive)
 	// connections across all hosts. Zero means no limit.
@@ -116,30 +122,39 @@ func NewApiClient() *ApiClient {
 
 	basicAuth := new(BasicAuth)
 	authentication := make(map[string]interface{})
+	authentication["apiKeyAuthScheme"] = map[string]interface{}{
+		"apiKey": new(APIKey),
+		"in":     "header",
+		"name":   "X-ntnx-api-key",
+	}
 	authentication["basicAuthScheme"] = basicAuth
 	currentDirectory, _ := os.Getwd()
 
 	a := &ApiClient{
-		Scheme:              "https",
-		Host:                "localhost",
-		Port:                9440,
-		Debug:               false,
-		VerifySSL:           true,
-		MaxRetryAttempts:    5,
-		ReadTimeout:         30 * time.Second,
-		ConnectTimeout:      30 * time.Second,
-		RetryInterval:       3 * time.Second,
-		DownloadDirectory:   currentDirectory,
-		DownloadChunkSize:   8 * 1024,
-		maxIdleConns:        10,
-		maxIdleConnsPerHost: 10,
-		maxConnsPerHost:     100,
-		idleConnTimeout:     90 * time.Second,
-		tlsHandshakeTimeout: 10 * time.Second,
-		defaultHeaders:      make(map[string]string),
-		refreshCookie:       true,
-		basicAuth:           basicAuth,
-		authentication:      authentication,
+		Scheme:                  "https",
+		Host:                    "localhost",
+		Port:                    9440,
+		Debug:                   false,
+		VerifySSL:               true,
+		MaxRetryAttempts:        5,
+		MaxRedirects:            10,
+		ReadTimeout:             30 * time.Second,
+		ConnectTimeout:          30 * time.Second,
+		RetryInterval:           3 * time.Second,
+		DownloadDirectory:       currentDirectory,
+		DownloadChunkSize:       8 * 1024,
+		maxIdleConns:            10,
+		maxIdleConnsPerHost:     10,
+		maxConnsPerHost:         100,
+		idleConnTimeout:         90 * time.Second,
+		tlsHandshakeTimeout:     10 * time.Second,
+		defaultHeaders:          make(map[string]string),
+		refreshCookie:           true,
+		basicAuth:               basicAuth,
+		authentication:          authentication,
+		negotiatedVersion:       "",
+		AllowVersionNegotiation: true,
+		negotiationCompleted:    false,
 	}
 
 	a.setupClient()
@@ -159,6 +174,24 @@ func (a *ApiClient) AddDefaultHeader(headerName string, headerValue string) {
 func (a *ApiClient) CallApi(uri *string, httpMethod string, body interface{},
 	queryParams url.Values, headerParams map[string]string, formParams url.Values,
 	accepts []string, contentType []string, authNames []string) (interface{}, error) {
+	if a.AllowVersionNegotiation && !a.negotiationCompleted {
+		a.NegotiateVersion(authNames)
+	}
+	return a.callApiInternal(uri, httpMethod, body, queryParams, headerParams,
+		formParams, accepts, contentType, authNames)
+}
+
+func (a *ApiClient) callApiInternal(uri *string, httpMethod string, body interface{},
+	queryParams url.Values, headerParams map[string]string, formParams url.Values,
+	accepts []string, contentType []string, authNames []string) (interface{}, error) {
+
+	if a.negotiatedVersion != "" && a.negotiatedVersion != sdkVersion {
+		if match, _ := regexp.MatchString(`v\d+\.\d+(\.[a|b]\d+)?`, a.negotiatedVersion); match {
+			a.logger.Infof("Changing uri %s to negotiated version %s", *uri, a.negotiatedVersion)
+			*uri = uriCheck.ReplaceAllString(*uri, fmt.Sprintf(`/${namespace}/%s/${suffix}`, a.negotiatedVersion))
+		}
+	}
+
 	path := a.Scheme + "://" + a.Host + ":" + strconv.Itoa(a.Port) + *uri
 
 	if headerParams["Authorization"] != "" {
@@ -225,7 +258,7 @@ func (a *ApiClient) CallApi(uri *string, httpMethod string, body interface{},
 	response, err := a.httpClient.Do(request)
 
 	// Retry one more time without the cookie but with basic auth header
-	if response != nil && response.StatusCode == 401 {
+	if response != nil && response.StatusCode == 401 && len(a.cookie) > 0 {
 		a.logger.Debug("Retrying the request to refresh cookie...")
 		request, _ = a.prepareRequest(path, httpMethod, body, headerParams, queryParams, formParams, authNames)
 		a.refreshCookie = true
@@ -239,14 +272,33 @@ func (a *ApiClient) CallApi(uri *string, httpMethod string, body interface{},
 		response, err = a.httpClient.Do(request)
 	}
 
+	// Retry one more time with X-Redirect-Token as cookie
+	if response != nil && response.StatusCode == 302 {
+		a.logger.Info("Retrying the request to follow the redirect...")
+		if response.Header != nil && response.Header.Get("Location") != "" {
+			location := response.Header.Get("Location")
+			a.logger.Info("Redirecting to : " + location)
+			request, _ = a.prepareRequest(location, httpMethod, body, headerParams, queryParams, formParams, authNames)
+			if response.Header.Get("X-Redirect-Token") != "" {
+				request.Header["Cookie"] = []string{response.Header.Get("X-Redirect-Token")}
+			}
+			response, err = a.httpClient.Do(request)
+		}
+	}
+
 	if err != nil {
 		a.logger.Error(err.Error())
 		return nil, err
 	}
 
+	binaryMediaTypes := []string{"application/octet-stream", "application/pdf", "application/zip"}
+	isBinaryResponse := response.Header != nil && a.Contains(binaryMediaTypes, response.Header.Get("Content-Type"))
+	textMediaTypes := []string{"text/event-stream", "text/html", "text/xml", "text/csv", "text/javascript", "text/markdown", "text/vcard"}
+	isTextResponse := response.Header != nil && a.Contains(textMediaTypes, response.Header.Get("Content-Type"))
+
 	if a.Debug {
 		printBody := true
-		if response.Header.Get("Content-Type") == "application/octet-stream" {
+		if isBinaryResponse {
 			printBody = false
 		}
 
@@ -268,21 +320,28 @@ func (a *ApiClient) CallApi(uri *string, httpMethod string, body interface{},
 
 	a.updateCookies(response)
 
+	// Reset negotiation flags on 404 to allow future negotiation attempts
+	if response.StatusCode == 404 {
+		a.negotiationCompleted = false
+		a.negotiatedVersion = ""
+		a.logger.Errorf("Received 404 Not Found for request")
+	}
+
 	if response.StatusCode == 204 {
 		return nil, nil
 	}
 
-	if response.Header.Get("Content-Type") == "application/octet-stream" {
-		return a.downloadFile(response)
+	if isBinaryResponse || isTextResponse {
+		return response, nil
 	}
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		a.logger.Error(err.Error())
 		return nil, err
 	}
 	response.Body.Close()
-	response.Body = ioutil.NopCloser(bytes.NewBuffer(responseBody))
+	response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 
 	if !(200 <= response.StatusCode && response.StatusCode <= 209) {
 		return nil, GenericOpenAPIError{
@@ -295,7 +354,16 @@ func (a *ApiClient) CallApi(uri *string, httpMethod string, body interface{},
 	}
 }
 
-func (a *ApiClient) downloadFile(response *http.Response) (*string, error) {
+func (a *ApiClient) Contains(source []string, match string) bool {
+	for _, item := range source {
+		if item == match {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *ApiClient) DownloadFile(response *http.Response) (*string, error) {
 	var filePath string
 	if len(response.Header.Get("Content-Disposition")) != 0 {
 		filename := contentDispositionCheck.FindStringSubmatch(response.Header.Get("Content-Disposition"))
@@ -303,13 +371,7 @@ func (a *ApiClient) downloadFile(response *http.Response) (*string, error) {
 			filePath = filepath.Join(a.DownloadDirectory, filename[1])
 		}
 	} else {
-		file, err := ioutil.TempFile(a.DownloadDirectory, "")
-		if err != nil {
-			a.logger.Errorf("Could not create a file on local for downloading: %s", err)
-			return nil, err
-		}
-		filePath = file.Name()
-		file.Close()
+		filePath = filepath.Join(a.DownloadDirectory, strconv.FormatInt(time.Now().UnixNano(), 10))
 	}
 
 	ext := filepath.Ext(filePath)
@@ -347,6 +409,11 @@ func (a *ApiClient) GetAuthentication(authName string) interface{} {
 	return a.authentication[authName]
 }
 
+// Get fallback version negotiated with server
+func (a *ApiClient) GetNegotiatedVersion() string {
+	return a.negotiatedVersion
+}
+
 // Helper method to set username for the first HTTP basic authentication.
 func (a *ApiClient) SetUserName(username string) {
 	a.Username = username
@@ -370,7 +437,7 @@ func (a *ApiClient) SetApiKey(key string) error {
 		}
 	}
 
-	return ReportError("no API key authentication configured!")
+	return ReportError("No API key authentication is configured!")
 }
 
 // Helper method to set API key prefix for the first API key authentication
@@ -404,11 +471,17 @@ func (a *ApiClient) SetMaxRetryAttempts(maxRetryAttempts int) {
 	a.MaxRetryAttempts = maxRetryAttempts
 }
 
+// Helper method to set maximum redirection attempts.
+// After the initial instantiation of ApiClient, maximum redirection attempts must be modified only via this method
+func (a *ApiClient) SetMaxRedirects(maxRedirects int) {
+	a.MaxRedirects = maxRedirects
+}
+
 func getValidTimeout(dur time.Duration, apiClient *ApiClient) time.Duration {
 	if dur <= 0 {
 		dur = 30 * time.Second
-	} else if dur > (30 * time.Minute) {
-		dur = 30 * time.Minute
+	} else if dur > (180 * time.Minute) {
+		dur = 180 * time.Minute
 	}
 
 	return dur
@@ -427,6 +500,14 @@ func (a *ApiClient) SetRetryIntervalInMilliSeconds(ms int) {
 	a.RetryInterval = time.Duration(ms) * time.Millisecond
 }
 
+// SetHost sets the hostname for base URL and resets negotiation flags
+func (a *ApiClient) SetHost(host string) {
+	a.Host = host
+	// Reset negotiation flags when host changes
+	a.negotiationCompleted = false
+	a.negotiatedVersion = ""
+}
+
 func (a *ApiClient) setupClient() {
 	var isRetryClientModified = false
 	retryClientValue := reflect.ValueOf(a.retryClient)
@@ -435,6 +516,10 @@ func (a *ApiClient) setupClient() {
 		isRetryClientModified = true
 	}
 
+	// Configure logger based on current configuration
+	configureLogger(a)
+
+	// Initialize/modify retryable http client's transport based on current configuration
 	var transport = a.retryClient.HTTPClient.Transport.(*http.Transport)
 	if isRetryClientModified || transport.TLSClientConfig == nil || transport.TLSClientConfig.InsecureSkipVerify != !a.VerifySSL ||
 		a.dialer == nil || a.dialer.Timeout != a.ConnectTimeout {
@@ -451,6 +536,8 @@ func (a *ApiClient) setupClient() {
 			TLSHandshakeTimeout:   a.tlsHandshakeTimeout,
 			ExpectContinueTimeout: 1 * time.Second,
 		}
+
+		// Configure proxy settings
 		if (a.Proxy != nil) && (*a.Proxy != Proxy{}) {
 			path := a.Proxy.Host
 			if a.Proxy.Port != 0 {
@@ -462,6 +549,7 @@ func (a *ApiClient) setupClient() {
 				Host:   path,
 			})
 		}
+
 		a.retryClient.HTTPClient.Transport = transport
 		isRetryClientModified = true
 	}
@@ -476,17 +564,31 @@ func (a *ApiClient) setupClient() {
 	a.retryClient.RetryWaitMax = a.RetryInterval
 	a.retryClient.CheckRetry = retryPolicy
 
-	configureLogger(a)
-
 	if isRetryClientModified {
+		// Create a standard http client from the retryablehttp client
 		a.httpClient = a.retryClient.StandardClient()
 	}
 
+	// Set total timeout for the http client
 	a.httpClient.Timeout = getValidTimeout(a.ConnectTimeout, a) + a.tlsHandshakeTimeout + getValidTimeout(a.ReadTimeout, a)
+
+	// Set the check redirect function to avoid automatic redirection
+	a.httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	// Set the variables within the nested retryable http client
+	t, ok := a.httpClient.Transport.(*retryablehttp.RoundTripper)
+	if ok {
+		t.Client.HTTPClient.Timeout = a.httpClient.Timeout
+		t.Client.HTTPClient.CheckRedirect = a.httpClient.CheckRedirect
+	}
 }
 
 func configureLogger(a *ApiClient) {
-	a.retryClient.Logger = nil
+	if a.retryClient != nil {
+		a.retryClient.Logger = nil
+	}
 
 	logLevel := logrus.InfoLevel
 	if a.Debug {
@@ -508,7 +610,7 @@ func configureLogger(a *ApiClient) {
 			Formatter: &myFormatter{
 				logrus.TextFormatter{
 					FullTimestamp:          true,
-					TimestampFormat:        "2006-01-02 15:04:05.000",
+					TimestampFormat:        "2006-01-02 15:04:05.000Z",
 					ForceColors:            true,
 					DisableLevelTruncation: true,
 				},
@@ -527,6 +629,9 @@ type myFormatter struct {
 
 // Format function implementation for the Formatter interface of logrus
 func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// Modify the log entry time to UTC
+	entry.Time = entry.Time.UTC()
+
 	var b *bytes.Buffer
 
 	if entry.Buffer != nil {
@@ -678,13 +783,16 @@ func (a *ApiClient) prepareRequest(
 				key = apiKey.Key
 			}
 
-			if auth["in"] == "header" {
-				localVarRequest.Header[auth["name"].(string)] = []string{key}
-			}
-			if auth["in"] == "query" {
-				queries := localVarRequest.URL.Query()
-				queries.Add(auth["name"].(string), key)
-				localVarRequest.URL.RawQuery = queries.Encode()
+			if key != "" {
+				if auth["in"] == "header" {
+					localVarRequest.Header[auth["name"].(string)] = []string{key}
+				}
+
+				if auth["in"] == "query" {
+					queries := localVarRequest.URL.Query()
+					queries.Add(auth["name"].(string), key)
+					localVarRequest.URL.RawQuery = queries.Encode()
+				}
 			}
 			// OAuth or Bearer authentication
 		} else if auth, ok := a.authentication[authName].(*OAuth); ok {
@@ -713,6 +821,117 @@ func (a *ApiClient) prepareRequest(
 	}
 
 	return localVarRequest, nil
+}
+
+func (a *ApiClient) performNegotiationBetweenVersions(sdk string, server string) string {
+	if len(sdk) == 0 || len(server) == 0 {
+		return sdk
+	}
+	sdkProps := a.getVersionDetails(sdk)
+	serverProps := a.getVersionDetails(server)
+	// if major version is different, then do not negotiate
+	// maintain sdk version
+	if sdkProps["family"] != serverProps["family"] {
+		a.logger.Info("\nCannot negotiate versions with different major versions\n")
+		return sdk
+	}
+	// if sdk version is smaller than highest server version, then maintain sdk version
+	if a.isSmallerMinorVersion(sdkProps, serverProps) {
+		return sdk
+	}
+	// since sdk version is higher than highest server version, use server version
+	return server
+}
+
+func (a *ApiClient) isSmallerMinorVersion(p1 map[string]string, p2 map[string]string) bool {
+	// if revision different, then compare revision
+	p1Revision, _ := strconv.Atoi(p1["revision"])
+	p2Revision, _ := strconv.Atoi(p2["revision"])
+	if p1Revision != p2Revision {
+		return p1Revision < p2Revision
+	}
+	// revision is same, so compare version_type (release_type + release_type_revision)
+	if p1["versionType"] == "released" {
+		return false
+	}
+	p1ReleaseType := p1["versionType"][0:1]
+	p2ReleaseType := p2["versionType"][0:1]
+	p1ReleaseTypeRevision, _ := strconv.Atoi(p1["versionType"][1:])
+	p2ReleaseTypeRevision, _ := strconv.Atoi(p2["versionType"][1:])
+	if p2["versionType"] == "released" {
+		p2ReleaseTypeRevision = 0
+	}
+	if p1ReleaseType == p2ReleaseType {
+		// release type is same, so compare release type revision
+		return p1ReleaseTypeRevision < p2ReleaseTypeRevision
+	}
+	// release type is different, so alpha must be smallest and released must be largest
+	return p1ReleaseType == "a" || p2["versionType"] == "released"
+}
+
+func (a *ApiClient) getVersionDetails(version string) map[string]string {
+	ret := make(map[string]string)
+	if version == "unversioned" {
+		ret["family"] = "unversioned"
+		ret["versionType"] = "released"
+	} else {
+		versionParts := strings.Split(version, ".")
+		if versionParts[0] == "unversioned" {
+			ret["family"] = "unversioned"
+			ret["versionType"] = versionParts[1]
+		} else {
+			ret["family"] = versionParts[0][1:]
+			ret["revision"] = versionParts[1]
+			if len(versionParts) == 2 {
+				ret["versionType"] = "released"
+			} else {
+				ret["versionType"] = versionParts[2]
+			}
+		}
+	}
+	return ret
+}
+
+// Trigger OPTIONS API call and version negotiation manually
+func (a *ApiClient) NegotiateVersion(authNames []string) {
+	path := new(string)
+	*path = "/api/networking/unversioned/info"
+	response, err := a.callApiInternal(path, http.MethodOptions, nil, url.Values{}, make(map[string]string),
+		url.Values{}, []string{}, []string{"application/json"}, authNames)
+	if nil == err {
+		unmarshalledResp := make(map[string]interface{})
+		err = json.Unmarshal(response.([]byte), &unmarshalledResp)
+		if nil == err {
+			if data, ok1 := unmarshalledResp["data"].(string); ok1 {
+				minimumSupportedVersion := "v4.2"
+
+				// Check if server version is below minimum supported version
+				if a.isSmallerMinorVersion(a.getVersionDetails(data), a.getVersionDetails(minimumSupportedVersion)) {
+					a.logger.Warnf("Server version %s is below minimum supported version %s. Version negotiation will not be performed.", data, minimumSupportedVersion)
+					a.negotiatedVersion = ""
+					a.negotiationCompleted = false
+					return
+				}
+
+				a.negotiatedVersion = a.performNegotiationBetweenVersions(sdkVersion, data)
+				a.logger.Infof("Negotiated Version with server : %s", a.negotiatedVersion)
+				a.negotiationCompleted = true
+				return
+			} else {
+				a.logger.Errorf("Could not fetch supported versions from server")
+				a.negotiatedVersion = ""
+				a.negotiationCompleted = false
+			}
+		} else {
+			a.logger.Errorf("Could not unmarshal response from server")
+			a.negotiatedVersion = ""
+			a.negotiationCompleted = false
+		}
+	} else {
+		a.logger.Errorf("Could not fetch supported versions from server with error : %s", err)
+		a.negotiatedVersion = ""
+		a.negotiationCompleted = false
+	}
 }
 
 // RetryPolicy provides a callback for Client.CheckRetry, specifies retry on
@@ -962,11 +1181,41 @@ func ParameterToString(obj interface{}, collectionFormat string) string {
 
 	if reflect.TypeOf(obj).Kind() == reflect.Slice {
 		return strings.Trim(strings.Replace(fmt.Sprint(obj), " ", delimiter, -1), "[]")
+	} else if isEnumType(obj) {
+		return getEnumValue(obj)
 	} else if t, ok := obj.(time.Time); ok {
 		return t.Format(time.RFC3339)
 	}
 
 	return fmt.Sprintf("%v", obj)
+}
+
+// Helper function to get the value of an enum
+func getEnumValue(v interface{}) string {
+	value := reflect.ValueOf(v)
+	if value.IsValid() {
+		// Change method name if model mustache changes enum method
+		method := value.MethodByName("GetName")
+		if method.IsValid() {
+			values := method.Call(nil)
+			if values != nil && len(values) == 1 {
+				return values[0].String()
+			}
+		}
+
+	}
+
+	return ""
+}
+
+// Helper function to check if this is an enum type
+func isEnumType(v interface{}) bool {
+	t := reflect.TypeOf(v)
+	// Check if the type is an integer type
+	if t != nil && (t.Kind() == reflect.Int || t.Kind() == reflect.Int8 || t.Kind() == reflect.Int16 || t.Kind() == reflect.Int32 || t.Kind() == reflect.Int64) {
+		return t.Kind().String() != t.Name() && t.ConvertibleTo(reflect.TypeOf(t.Name()))
+	}
+	return false
 }
 
 // Helper for converting interface{} parameters to json strings

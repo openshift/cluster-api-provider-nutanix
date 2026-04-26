@@ -1,10 +1,9 @@
-//Api classes for networking's golang SDK
 package api
 
 import (
 	"encoding/json"
 	"github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/client"
-	import1 "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
+	import2 "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,13 +33,13 @@ func NewBgpSessionsApi(apiClient *client.ApiClient) *BgpSessionsApi {
 }
 
 // Create BGP session.
-func (api *BgpSessionsApi) CreateBgpSession(body *import1.BgpSession, args ...map[string]interface{}) (*import1.TaskReferenceApiResponse, error) {
+func (api *BgpSessionsApi) CreateBgpSession(body *import2.BgpSession, args ...map[string]interface{}) (*import2.TaskReferenceApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/bgp-sessions"
+	uri := "/api/networking/v4.2/config/bgp-sessions"
 
 	// verify the required parameter 'body' is set
 	if nil == body {
@@ -62,33 +61,33 @@ func (api *BgpSessionsApi) CreateBgpSession(body *import1.BgpSession, args ...ma
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodPost, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodPost, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.TaskReferenceApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.TaskReferenceApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
 // Delete BGP session for the specified {extId}.
-func (api *BgpSessionsApi) DeleteBgpSessionById(extId *string, args ...map[string]interface{}) (*import1.TaskReferenceApiResponse, error) {
+func (api *BgpSessionsApi) DeleteBgpSessionById(extId *string, args ...map[string]interface{}) (*import2.TaskReferenceApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/bgp-sessions/{extId}"
+	uri := "/api/networking/v4.2/config/bgp-sessions/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -96,7 +95,6 @@ func (api *BgpSessionsApi) DeleteBgpSessionById(extId *string, args ...map[strin
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -113,33 +111,33 @@ func (api *BgpSessionsApi) DeleteBgpSessionById(extId *string, args ...map[strin
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodDelete, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodDelete, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.TaskReferenceApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.TaskReferenceApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
 // Get BGP session for the specified {extId}.
-func (api *BgpSessionsApi) GetBgpSessionById(extId *string, args ...map[string]interface{}) (*import1.GetBgpSessionApiResponse, error) {
+func (api *BgpSessionsApi) GetBgpSessionById(extId *string, args ...map[string]interface{}) (*import2.GetBgpSessionApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/bgp-sessions/{extId}"
+	uri := "/api/networking/v4.2/config/bgp-sessions/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -147,7 +145,6 @@ func (api *BgpSessionsApi) GetBgpSessionById(extId *string, args ...map[string]i
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -164,33 +161,33 @@ func (api *BgpSessionsApi) GetBgpSessionById(extId *string, args ...map[string]i
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.GetBgpSessionApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.GetBgpSessionApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
 // List BGP sessions request.
-func (api *BgpSessionsApi) ListBgpSessions(page_ *int, limit_ *int, filter_ *string, orderby_ *string, expand_ *string, args ...map[string]interface{}) (*import1.ListBgpSessionsApiResponse, error) {
+func (api *BgpSessionsApi) ListBgpSessions(page_ *int, limit_ *int, filter_ *string, orderby_ *string, expand_ *string, args ...map[string]interface{}) (*import2.ListBgpSessionsApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/bgp-sessions"
+	uri := "/api/networking/v4.2/config/bgp-sessions"
 
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -204,23 +201,18 @@ func (api *BgpSessionsApi) ListBgpSessions(page_ *int, limit_ *int, filter_ *str
 
 	// Query Params
 	if page_ != nil {
-
 		queryParams.Add("$page", client.ParameterToString(*page_, ""))
 	}
 	if limit_ != nil {
-
 		queryParams.Add("$limit", client.ParameterToString(*limit_, ""))
 	}
 	if filter_ != nil {
-
 		queryParams.Add("$filter", client.ParameterToString(*filter_, ""))
 	}
 	if orderby_ != nil {
-
 		queryParams.Add("$orderby", client.ParameterToString(*orderby_, ""))
 	}
 	if expand_ != nil {
-
 		queryParams.Add("$expand", client.ParameterToString(*expand_, ""))
 	}
 	// Headers provided explicitly on operation takes precedence
@@ -228,33 +220,33 @@ func (api *BgpSessionsApi) ListBgpSessions(page_ *int, limit_ *int, filter_ *str
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.ListBgpSessionsApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.ListBgpSessionsApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
 // Update BGP session for the specified {extId}.
-func (api *BgpSessionsApi) UpdateBgpSessionById(extId *string, body *import1.BgpSession, args ...map[string]interface{}) (*import1.TaskReferenceApiResponse, error) {
+func (api *BgpSessionsApi) UpdateBgpSessionById(extId *string, body *import2.BgpSession, args ...map[string]interface{}) (*import2.TaskReferenceApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/bgp-sessions/{extId}"
+	uri := "/api/networking/v4.2/config/bgp-sessions/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -266,7 +258,6 @@ func (api *BgpSessionsApi) UpdateBgpSessionById(extId *string, body *import1.Bgp
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -283,21 +274,21 @@ func (api *BgpSessionsApi) UpdateBgpSessionById(extId *string, body *import1.Bgp
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodPut, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodPut, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.TaskReferenceApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.TaskReferenceApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }

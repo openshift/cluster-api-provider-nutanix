@@ -1,6 +1,6 @@
 attributes:
   type: infrastructure
-  version: v1.7.2
+  version: v1.9.2
 installOrder: 20
 name: cluster-api-provider-nutanix
 ocpPlatform: Nutanix

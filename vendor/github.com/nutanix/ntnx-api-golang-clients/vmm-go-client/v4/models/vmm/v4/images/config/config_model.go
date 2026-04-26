@@ -1,16 +1,16 @@
 /*
  * Generated file models/vmm/v4/images/config/config_model.go.
  *
- * Product version: 4.0.1-beta-1
+ * Product version: 4.2.1
  *
- * Part of the Nutanix VMM APIs
+ * Part of the Nutanix Virtual Machine Management APIs
  *
- * (c) 2024 Nutanix Inc.  All rights reserved
+ * (c) 2025 Nutanix Inc.  All rights reserved
  *
  */
 
 /*
-  Module vmm.v4.images.config of Nutanix VMM APIs
+  Module vmm.v4.images.config of Nutanix Virtual Machine Management APIs
 */
 package config
 
@@ -26,7 +26,7 @@ import (
 )
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies Post operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies Post operation
 */
 type CreatePlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -44,11 +44,89 @@ type CreatePlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *CreatePlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias CreatePlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *CreatePlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias CreatePlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewCreatePlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewCreatePlacementPolicyApiResponse() *CreatePlacementPolicyApiResponse {
 	p := new(CreatePlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.CreatePlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -76,7 +154,7 @@ func (p *CreatePlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/rate-limit-policies Post operation
+REST response for all response codes in API path /vmm/v4.2/images/config/rate-limit-policies Post operation
 */
 type CreateRateLimitPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -94,11 +172,89 @@ type CreateRateLimitPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *CreateRateLimitPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias CreateRateLimitPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *CreateRateLimitPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias CreateRateLimitPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewCreateRateLimitPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewCreateRateLimitPolicyApiResponse() *CreateRateLimitPolicyApiResponse {
 	p := new(CreateRateLimitPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.CreateRateLimitPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -126,7 +282,7 @@ func (p *CreateRateLimitPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies/{extId} Delete operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies/{extId} Delete operation
 */
 type DeletePlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -144,11 +300,89 @@ type DeletePlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *DeletePlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias DeletePlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *DeletePlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias DeletePlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewDeletePlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewDeletePlacementPolicyApiResponse() *DeletePlacementPolicyApiResponse {
 	p := new(DeletePlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.DeletePlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -176,7 +410,7 @@ func (p *DeletePlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/rate-limit-policies/{extId} Delete operation
+REST response for all response codes in API path /vmm/v4.2/images/config/rate-limit-policies/{extId} Delete operation
 */
 type DeleteRateLimitPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -194,11 +428,89 @@ type DeleteRateLimitPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *DeleteRateLimitPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias DeleteRateLimitPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *DeleteRateLimitPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias DeleteRateLimitPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewDeleteRateLimitPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewDeleteRateLimitPolicyApiResponse() *DeleteRateLimitPolicyApiResponse {
 	p := new(DeleteRateLimitPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.DeleteRateLimitPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -225,9 +537,6 @@ func (p *DeleteRateLimitPolicyApiResponse) SetData(v interface{}) error {
 	return e
 }
 
-/*
-The enforced rate limit on cluster when multiple image rate limit policies apply.
-*/
 type EffectiveRateLimitPolicy struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
 
@@ -239,14 +548,28 @@ type EffectiveRateLimitPolicy struct {
 	*/
 	ClusterExtId *string `json:"clusterExtId"`
 	/*
-	  Image rate limit policy external identifier.
+	  A globally unique identifier of an instance that is suitable for external consumption.
+	*/
+	ExtId *string `json:"extId,omitempty"`
+	/*
+	  A HATEOAS style link for the response.  Each link contains a user-friendly name identifying the link and an address for retrieving the particular resource.
+	*/
+	Links []import3.ApiLink `json:"links,omitempty"`
+	/*
+	  The external identifier of image rate limit policy.
 	*/
 	RateLimitExtId *string `json:"rateLimitExtId"`
+	/*
+	  A globally unique identifier that represents the tenant that owns this entity. The system automatically assigns it, and it and is immutable from an API consumer perspective (some use cases may cause this ID to change - For instance, a use case may require the transfer of ownership of the entity, but these cases are handled automatically on the server).
+	*/
+	TenantId *string `json:"tenantId,omitempty"`
 }
 
 func (p *EffectiveRateLimitPolicy) MarshalJSON() ([]byte, error) {
 	type EffectiveRateLimitPolicyProxy EffectiveRateLimitPolicy
-	return json.Marshal(struct {
+
+	// Step 1: Marshal known fields via proxy to enforce required fields
+	baseStruct := struct {
 		*EffectiveRateLimitPolicyProxy
 		ClusterExtId   *string `json:"clusterExtId,omitempty"`
 		RateLimitExtId *string `json:"rateLimitExtId,omitempty"`
@@ -254,14 +577,94 @@ func (p *EffectiveRateLimitPolicy) MarshalJSON() ([]byte, error) {
 		EffectiveRateLimitPolicyProxy: (*EffectiveRateLimitPolicyProxy)(p),
 		ClusterExtId:                  p.ClusterExtId,
 		RateLimitExtId:                p.RateLimitExtId,
-	})
+	}
+
+	known, err := json.Marshal(baseStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *EffectiveRateLimitPolicy) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias EffectiveRateLimitPolicy
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewEffectiveRateLimitPolicy()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.ClusterExtId != nil {
+		p.ClusterExtId = known.ClusterExtId
+	}
+	if known.ExtId != nil {
+		p.ExtId = known.ExtId
+	}
+	if known.Links != nil {
+		p.Links = known.Links
+	}
+	if known.RateLimitExtId != nil {
+		p.RateLimitExtId = known.RateLimitExtId
+	}
+	if known.TenantId != nil {
+		p.TenantId = known.TenantId
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "clusterExtId")
+	delete(allFields, "extId")
+	delete(allFields, "links")
+	delete(allFields, "rateLimitExtId")
+	delete(allFields, "tenantId")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
 }
 
 func NewEffectiveRateLimitPolicy() *EffectiveRateLimitPolicy {
 	p := new(EffectiveRateLimitPolicy)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.EffectiveRateLimitPolicy"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -355,28 +758,102 @@ type Filter struct {
 	Reserved_ map[string]interface{} `json:"$reserved,omitempty"`
 
 	UnknownFields_ map[string]interface{} `json:"$unknownFields,omitempty"`
-
-	CategoryExtIds []string `json:"categoryExtIds,omitempty"`
+	/*
+	  Filter matches entities that have these categories attached.
+	*/
+	CategoryExtIds []string `json:"categoryExtIds"`
 
 	Type *FilterMatchType `json:"type"`
 }
 
 func (p *Filter) MarshalJSON() ([]byte, error) {
 	type FilterProxy Filter
-	return json.Marshal(struct {
+
+	// Step 1: Marshal known fields via proxy to enforce required fields
+	baseStruct := struct {
 		*FilterProxy
-		Type *FilterMatchType `json:"type,omitempty"`
+		CategoryExtIds []string         `json:"categoryExtIds,omitempty"`
+		Type           *FilterMatchType `json:"type,omitempty"`
 	}{
-		FilterProxy: (*FilterProxy)(p),
-		Type:        p.Type,
-	})
+		FilterProxy:    (*FilterProxy)(p),
+		CategoryExtIds: p.CategoryExtIds,
+		Type:           p.Type,
+	}
+
+	known, err := json.Marshal(baseStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *Filter) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias Filter
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewFilter()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.CategoryExtIds != nil {
+		p.CategoryExtIds = known.CategoryExtIds
+	}
+	if known.Type != nil {
+		p.Type = known.Type
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "categoryExtIds")
+	delete(allFields, "type")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
 }
 
 func NewFilter() *Filter {
 	p := new(Filter)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.Filter"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -462,7 +939,7 @@ func (e FilterMatchType) Ref() *FilterMatchType {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies/{extId} Get operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies/{extId} Get operation
 */
 type GetPlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -480,11 +957,89 @@ type GetPlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *GetPlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias GetPlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *GetPlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias GetPlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewGetPlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewGetPlacementPolicyApiResponse() *GetPlacementPolicyApiResponse {
 	p := new(GetPlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.GetPlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -512,7 +1067,7 @@ func (p *GetPlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/rate-limit-policies/{extId} Get operation
+REST response for all response codes in API path /vmm/v4.2/images/config/rate-limit-policies/{extId} Get operation
 */
 type GetRateLimitPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -530,11 +1085,89 @@ type GetRateLimitPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *GetRateLimitPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias GetRateLimitPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *GetRateLimitPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias GetRateLimitPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewGetRateLimitPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewGetRateLimitPolicyApiResponse() *GetRateLimitPolicyApiResponse {
 	p := new(GetRateLimitPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.GetRateLimitPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -562,7 +1195,7 @@ func (p *GetRateLimitPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/effective-rate-limit-policies Get operation
+REST response for all response codes in API path /vmm/v4.2/images/config/effective-rate-limit-policies Get operation
 */
 type ListEffectiveRateLimitPoliciesApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -580,11 +1213,89 @@ type ListEffectiveRateLimitPoliciesApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *ListEffectiveRateLimitPoliciesApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias ListEffectiveRateLimitPoliciesApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *ListEffectiveRateLimitPoliciesApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias ListEffectiveRateLimitPoliciesApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewListEffectiveRateLimitPoliciesApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewListEffectiveRateLimitPoliciesApiResponse() *ListEffectiveRateLimitPoliciesApiResponse {
 	p := new(ListEffectiveRateLimitPoliciesApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.ListEffectiveRateLimitPoliciesApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -612,7 +1323,7 @@ func (p *ListEffectiveRateLimitPoliciesApiResponse) SetData(v interface{}) error
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies Get operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies Get operation
 */
 type ListPlacementPoliciesApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -630,11 +1341,89 @@ type ListPlacementPoliciesApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *ListPlacementPoliciesApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias ListPlacementPoliciesApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *ListPlacementPoliciesApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias ListPlacementPoliciesApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewListPlacementPoliciesApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewListPlacementPoliciesApiResponse() *ListPlacementPoliciesApiResponse {
 	p := new(ListPlacementPoliciesApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.ListPlacementPoliciesApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -662,7 +1451,7 @@ func (p *ListPlacementPoliciesApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/rate-limit-policies Get operation
+REST response for all response codes in API path /vmm/v4.2/images/config/rate-limit-policies Get operation
 */
 type ListRateLimitPoliciesApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -680,11 +1469,89 @@ type ListRateLimitPoliciesApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *ListRateLimitPoliciesApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias ListRateLimitPoliciesApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *ListRateLimitPoliciesApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias ListRateLimitPoliciesApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewListRateLimitPoliciesApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewListRateLimitPoliciesApiResponse() *ListRateLimitPoliciesApiResponse {
 	p := new(ListRateLimitPoliciesApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.ListRateLimitPoliciesApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -720,7 +1587,7 @@ type PlacementPolicy struct {
 
 	ClusterEntityFilter *Filter `json:"clusterEntityFilter"`
 	/*
-	  Create time of an image placement policy.
+	  Image placement policy creation time.
 	*/
 	CreateTime *time.Time `json:"createTime,omitempty"`
 	/*
@@ -736,7 +1603,7 @@ type PlacementPolicy struct {
 
 	ImageEntityFilter *Filter `json:"imageEntityFilter"`
 	/*
-	  Last update time of an image placement policy.
+	  Last updated time of an image placement policy.
 	*/
 	LastUpdateTime *time.Time `json:"lastUpdateTime,omitempty"`
 	/*
@@ -751,17 +1618,23 @@ type PlacementPolicy struct {
 	  External identifier of the owner of the image placement policy.
 	*/
 	OwnerExtId *string `json:"ownerExtId,omitempty"`
+	/*
+	  Name of the owner of the image placement policy.
+	*/
+	OwnerName *string `json:"ownerName,omitempty"`
 
 	PlacementType *PlacementType `json:"placementType"`
 	/*
-	  A globally unique identifier that represents the tenant that owns this entity. The system automatically assigns it, and it and is immutable from an API consumer perspective (some use cases may cause this Id to change - For instance, a use case may require the transfer of ownership of the entity, but these cases are handled automatically on the server).
+	  A globally unique identifier that represents the tenant that owns this entity. The system automatically assigns it, and it and is immutable from an API consumer perspective (some use cases may cause this ID to change - For instance, a use case may require the transfer of ownership of the entity, but these cases are handled automatically on the server).
 	*/
 	TenantId *string `json:"tenantId,omitempty"`
 }
 
 func (p *PlacementPolicy) MarshalJSON() ([]byte, error) {
 	type PlacementPolicyProxy PlacementPolicy
-	return json.Marshal(struct {
+
+	// Step 1: Marshal known fields via proxy to enforce required fields
+	baseStruct := struct {
 		*PlacementPolicyProxy
 		ClusterEntityFilter *Filter        `json:"clusterEntityFilter,omitempty"`
 		ImageEntityFilter   *Filter        `json:"imageEntityFilter,omitempty"`
@@ -773,14 +1646,126 @@ func (p *PlacementPolicy) MarshalJSON() ([]byte, error) {
 		ImageEntityFilter:    p.ImageEntityFilter,
 		Name:                 p.Name,
 		PlacementType:        p.PlacementType,
-	})
+	}
+
+	known, err := json.Marshal(baseStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *PlacementPolicy) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias PlacementPolicy
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewPlacementPolicy()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.ClusterEntityFilter != nil {
+		p.ClusterEntityFilter = known.ClusterEntityFilter
+	}
+	if known.CreateTime != nil {
+		p.CreateTime = known.CreateTime
+	}
+	if known.Description != nil {
+		p.Description = known.Description
+	}
+	if known.EnforcementState != nil {
+		p.EnforcementState = known.EnforcementState
+	}
+	if known.ExtId != nil {
+		p.ExtId = known.ExtId
+	}
+	if known.ImageEntityFilter != nil {
+		p.ImageEntityFilter = known.ImageEntityFilter
+	}
+	if known.LastUpdateTime != nil {
+		p.LastUpdateTime = known.LastUpdateTime
+	}
+	if known.Links != nil {
+		p.Links = known.Links
+	}
+	if known.Name != nil {
+		p.Name = known.Name
+	}
+	if known.OwnerExtId != nil {
+		p.OwnerExtId = known.OwnerExtId
+	}
+	if known.OwnerName != nil {
+		p.OwnerName = known.OwnerName
+	}
+	if known.PlacementType != nil {
+		p.PlacementType = known.PlacementType
+	}
+	if known.TenantId != nil {
+		p.TenantId = known.TenantId
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "clusterEntityFilter")
+	delete(allFields, "createTime")
+	delete(allFields, "description")
+	delete(allFields, "enforcementState")
+	delete(allFields, "extId")
+	delete(allFields, "imageEntityFilter")
+	delete(allFields, "lastUpdateTime")
+	delete(allFields, "links")
+	delete(allFields, "name")
+	delete(allFields, "ownerExtId")
+	delete(allFields, "ownerName")
+	delete(allFields, "placementType")
+	delete(allFields, "tenantId")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
 }
 
 func NewPlacementPolicy() *PlacementPolicy {
 	p := new(PlacementPolicy)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.PlacementPolicy"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -874,7 +1859,7 @@ type RateLimitPolicy struct {
 
 	ClusterEntityFilter *Filter `json:"clusterEntityFilter"`
 	/*
-	  Create time of a rate limit policy.
+	  Image rate limit policy creation time.
 	*/
 	CreateTime *time.Time `json:"createTime,omitempty"`
 	/*
@@ -886,7 +1871,7 @@ type RateLimitPolicy struct {
 	*/
 	ExtId *string `json:"extId,omitempty"`
 	/*
-	  Last update time of a rate limit policy.
+	  Last updated time of an image rate limit policy.
 	*/
 	LastUpdateTime *time.Time `json:"lastUpdateTime,omitempty"`
 	/*
@@ -906,18 +1891,24 @@ type RateLimitPolicy struct {
 	*/
 	OwnerExtId *string `json:"ownerExtId,omitempty"`
 	/*
+	  Name of the owner of the rate limit policy.
+	*/
+	OwnerName *string `json:"ownerName,omitempty"`
+	/*
 	  Network bandwidth in KBps that the rate limited image operation can utilize.
 	*/
 	RateLimitKbps *int64 `json:"rateLimitKbps"`
 	/*
-	  A globally unique identifier that represents the tenant that owns this entity. The system automatically assigns it, and it and is immutable from an API consumer perspective (some use cases may cause this Id to change - For instance, a use case may require the transfer of ownership of the entity, but these cases are handled automatically on the server).
+	  A globally unique identifier that represents the tenant that owns this entity. The system automatically assigns it, and it and is immutable from an API consumer perspective (some use cases may cause this ID to change - For instance, a use case may require the transfer of ownership of the entity, but these cases are handled automatically on the server).
 	*/
 	TenantId *string `json:"tenantId,omitempty"`
 }
 
 func (p *RateLimitPolicy) MarshalJSON() ([]byte, error) {
 	type RateLimitPolicyProxy RateLimitPolicy
-	return json.Marshal(struct {
+
+	// Step 1: Marshal known fields via proxy to enforce required fields
+	baseStruct := struct {
 		*RateLimitPolicyProxy
 		ClusterEntityFilter *Filter `json:"clusterEntityFilter,omitempty"`
 		Name                *string `json:"name,omitempty"`
@@ -927,21 +1918,129 @@ func (p *RateLimitPolicy) MarshalJSON() ([]byte, error) {
 		ClusterEntityFilter:  p.ClusterEntityFilter,
 		Name:                 p.Name,
 		RateLimitKbps:        p.RateLimitKbps,
-	})
+	}
+
+	known, err := json.Marshal(baseStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *RateLimitPolicy) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias RateLimitPolicy
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewRateLimitPolicy()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.ClusterEntityFilter != nil {
+		p.ClusterEntityFilter = known.ClusterEntityFilter
+	}
+	if known.CreateTime != nil {
+		p.CreateTime = known.CreateTime
+	}
+	if known.Description != nil {
+		p.Description = known.Description
+	}
+	if known.ExtId != nil {
+		p.ExtId = known.ExtId
+	}
+	if known.LastUpdateTime != nil {
+		p.LastUpdateTime = known.LastUpdateTime
+	}
+	if known.Links != nil {
+		p.Links = known.Links
+	}
+	if known.MatchingClusterExtIds != nil {
+		p.MatchingClusterExtIds = known.MatchingClusterExtIds
+	}
+	if known.Name != nil {
+		p.Name = known.Name
+	}
+	if known.OwnerExtId != nil {
+		p.OwnerExtId = known.OwnerExtId
+	}
+	if known.OwnerName != nil {
+		p.OwnerName = known.OwnerName
+	}
+	if known.RateLimitKbps != nil {
+		p.RateLimitKbps = known.RateLimitKbps
+	}
+	if known.TenantId != nil {
+		p.TenantId = known.TenantId
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "clusterEntityFilter")
+	delete(allFields, "createTime")
+	delete(allFields, "description")
+	delete(allFields, "extId")
+	delete(allFields, "lastUpdateTime")
+	delete(allFields, "links")
+	delete(allFields, "matchingClusterExtIds")
+	delete(allFields, "name")
+	delete(allFields, "ownerExtId")
+	delete(allFields, "ownerName")
+	delete(allFields, "rateLimitKbps")
+	delete(allFields, "tenantId")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
 }
 
 func NewRateLimitPolicy() *RateLimitPolicy {
 	p := new(RateLimitPolicy)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.RateLimitPolicy"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies/{extId}/$actions/resume Post operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies/{extId}/$actions/resume Post operation
 */
 type ResumePlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -959,11 +2058,89 @@ type ResumePlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *ResumePlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias ResumePlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *ResumePlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias ResumePlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewResumePlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewResumePlacementPolicyApiResponse() *ResumePlacementPolicyApiResponse {
 	p := new(ResumePlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.ResumePlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -991,7 +2168,7 @@ func (p *ResumePlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies/{extId}/$actions/suspend Post operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies/{extId}/$actions/suspend Post operation
 */
 type SuspendPlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -1009,11 +2186,89 @@ type SuspendPlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *SuspendPlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias SuspendPlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *SuspendPlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias SuspendPlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewSuspendPlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewSuspendPlacementPolicyApiResponse() *SuspendPlacementPolicyApiResponse {
 	p := new(SuspendPlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.SuspendPlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -1041,8 +2296,8 @@ func (p *SuspendPlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-Indicates whether the tasks running to enforce policy should be canceled.
-These would be checkout and uncheckout tasks to placement remove images from the cluster(s).
+Indicates whether the tasks running to enforce policy should be cancelled.
+These would be tasks to transfer and/or remove images to/from the cluster(s).
 */
 type SuspendPlacementPolicyConfig struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -1051,16 +2306,86 @@ type SuspendPlacementPolicyConfig struct {
 
 	UnknownFields_ map[string]interface{} `json:"$unknownFields,omitempty"`
 	/*
-	  Boolean to indicate if tasks running to enforce image placement policy should be suspended.
+	  Boolean to indicate whether tasks running to enforce the image placement policy should be suspended.
 	*/
 	ShouldCancelRunningTasks *bool `json:"shouldCancelRunningTasks,omitempty"`
+}
+
+func (p *SuspendPlacementPolicyConfig) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias SuspendPlacementPolicyConfig
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *SuspendPlacementPolicyConfig) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias SuspendPlacementPolicyConfig
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewSuspendPlacementPolicyConfig()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.ShouldCancelRunningTasks != nil {
+		p.ShouldCancelRunningTasks = known.ShouldCancelRunningTasks
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "shouldCancelRunningTasks")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
 }
 
 func NewSuspendPlacementPolicyConfig() *SuspendPlacementPolicyConfig {
 	p := new(SuspendPlacementPolicyConfig)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.SuspendPlacementPolicyConfig"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	p.ShouldCancelRunningTasks = new(bool)
@@ -1070,7 +2395,7 @@ func NewSuspendPlacementPolicyConfig() *SuspendPlacementPolicyConfig {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/placement-policies/{extId} Put operation
+REST response for all response codes in API path /vmm/v4.2/images/config/placement-policies/{extId} Put operation
 */
 type UpdatePlacementPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -1088,11 +2413,89 @@ type UpdatePlacementPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *UpdatePlacementPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias UpdatePlacementPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *UpdatePlacementPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias UpdatePlacementPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewUpdatePlacementPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewUpdatePlacementPolicyApiResponse() *UpdatePlacementPolicyApiResponse {
 	p := new(UpdatePlacementPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.UpdatePlacementPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -1120,7 +2523,7 @@ func (p *UpdatePlacementPolicyApiResponse) SetData(v interface{}) error {
 }
 
 /*
-REST response for all response codes in API path /vmm/v4.0.b1/images/config/rate-limit-policies/{extId} Put operation
+REST response for all response codes in API path /vmm/v4.2/images/config/rate-limit-policies/{extId} Put operation
 */
 type UpdateRateLimitPolicyApiResponse struct {
 	ObjectType_ *string `json:"$objectType,omitempty"`
@@ -1138,11 +2541,89 @@ type UpdateRateLimitPolicyApiResponse struct {
 	Metadata *import3.ApiResponseMetadata `json:"metadata,omitempty"`
 }
 
+func (p *UpdateRateLimitPolicyApiResponse) MarshalJSON() ([]byte, error) {
+	// Create Alias to avoid infinite recursion
+	type Alias UpdateRateLimitPolicyApiResponse
+
+	// Step 1: Marshal the known fields
+	known, err := json.Marshal(Alias(*p))
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Convert known to map for merging
+	var knownMap map[string]interface{}
+	if err := json.Unmarshal(known, &knownMap); err != nil {
+		return nil, err
+	}
+	delete(knownMap, "$unknownFields")
+
+	// Step 3: Merge unknown fields
+	for k, v := range p.UnknownFields_ {
+		knownMap[k] = v
+	}
+
+	// Step 4: Marshal final merged map
+	return json.Marshal(knownMap)
+}
+
+func (p *UpdateRateLimitPolicyApiResponse) UnmarshalJSON(b []byte) error {
+	// Step 1: Unmarshal into a generic map to capture all fields
+	var allFields map[string]interface{}
+	if err := json.Unmarshal(b, &allFields); err != nil {
+		return err
+	}
+
+	// Step 2: Unmarshal into a temporary struct with known fields
+	type Alias UpdateRateLimitPolicyApiResponse
+	known := &Alias{}
+	if err := json.Unmarshal(b, known); err != nil {
+		return err
+	}
+
+	// Step 3: Assign known fields
+	*p = *NewUpdateRateLimitPolicyApiResponse()
+
+	if known.ObjectType_ != nil {
+		p.ObjectType_ = known.ObjectType_
+	}
+	if known.Reserved_ != nil {
+		p.Reserved_ = known.Reserved_
+	}
+	if known.UnknownFields_ != nil {
+		p.UnknownFields_ = known.UnknownFields_
+	}
+	if known.DataItemDiscriminator_ != nil {
+		p.DataItemDiscriminator_ = known.DataItemDiscriminator_
+	}
+	if known.Data != nil {
+		p.Data = known.Data
+	}
+	if known.Metadata != nil {
+		p.Metadata = known.Metadata
+	}
+
+	// Step 4: Remove known JSON fields from allFields map
+	delete(allFields, "$objectType")
+	delete(allFields, "$reserved")
+	delete(allFields, "$unknownFields")
+	delete(allFields, "$dataItemDiscriminator")
+	delete(allFields, "data")
+	delete(allFields, "metadata")
+
+	// Step 5: Assign remaining fields to UnknownFields_
+	for key, value := range allFields {
+		p.UnknownFields_[key] = value
+	}
+
+	return nil
+}
+
 func NewUpdateRateLimitPolicyApiResponse() *UpdateRateLimitPolicyApiResponse {
 	p := new(UpdateRateLimitPolicyApiResponse)
 	p.ObjectType_ = new(string)
 	*p.ObjectType_ = "vmm.v4.images.config.UpdateRateLimitPolicyApiResponse"
-	p.Reserved_ = map[string]interface{}{"$fv": "v4.r0.b1"}
+	p.Reserved_ = map[string]interface{}{"$fv": "v4.r2"}
 	p.UnknownFields_ = map[string]interface{}{}
 
 	return p
@@ -1169,23 +2650,23 @@ func (p *UpdateRateLimitPolicyApiResponse) SetData(v interface{}) error {
 	return e
 }
 
-type OneOfCreateRateLimitPolicyApiResponseData struct {
+type OneOfListRateLimitPoliciesApiResponseData struct {
 	Discriminator *string                `json:"-"`
 	ObjectType_   *string                `json:"-"`
 	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType0    []RateLimitPolicy      `json:"-"`
 }
 
-func NewOneOfCreateRateLimitPolicyApiResponseData() *OneOfCreateRateLimitPolicyApiResponseData {
-	p := new(OneOfCreateRateLimitPolicyApiResponseData)
+func NewOneOfListRateLimitPoliciesApiResponseData() *OneOfListRateLimitPoliciesApiResponseData {
+	p := new(OneOfListRateLimitPoliciesApiResponseData)
 	p.Discriminator = new(string)
 	p.ObjectType_ = new(string)
 	return p
 }
 
-func (p *OneOfCreateRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
+func (p *OneOfListRateLimitPoliciesApiResponseData) SetValue(v interface{}) error {
 	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfCreateRateLimitPolicyApiResponseData is nil"))
+		return errors.New(fmt.Sprintf("OneOfListRateLimitPoliciesApiResponseData is nil"))
 	}
 	switch v.(type) {
 	case import2.ErrorResponse:
@@ -1201,144 +2682,33 @@ func (p *OneOfCreateRateLimitPolicyApiResponseData) SetValue(v interface{}) erro
 			p.ObjectType_ = new(string)
 		}
 		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
+	case []RateLimitPolicy:
+		p.oneOfType0 = v.([]RateLimitPolicy)
 		if nil == p.Discriminator {
 			p.Discriminator = new(string)
 		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
+		*p.Discriminator = "List<vmm.v4.images.config.RateLimitPolicy>"
 		if nil == p.ObjectType_ {
 			p.ObjectType_ = new(string)
 		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+		*p.ObjectType_ = "List<vmm.v4.images.config.RateLimitPolicy>"
 	default:
 		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
 	}
 	return nil
 }
 
-func (p *OneOfCreateRateLimitPolicyApiResponseData) GetValue() interface{} {
+func (p *OneOfListRateLimitPoliciesApiResponseData) GetValue() interface{} {
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return *p.oneOfType400
 	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
-	}
-	return nil
-}
-
-func (p *OneOfCreateRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
-	vOneOfType400 := new(import2.ErrorResponse)
-	if err := json.Unmarshal(b, vOneOfType400); err == nil {
-		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
-			if nil == p.oneOfType400 {
-				p.oneOfType400 = new(import2.ErrorResponse)
-			}
-			*p.oneOfType400 = *vOneOfType400
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType400.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType400.ObjectType_
-			return nil
-		}
-	}
-	vOneOfType0 := new(import1.TaskReference)
-	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
-			if nil == p.oneOfType0 {
-				p.oneOfType0 = new(import1.TaskReference)
-			}
-			*p.oneOfType0 = *vOneOfType0
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType0.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType0.ObjectType_
-			return nil
-		}
-	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfCreateRateLimitPolicyApiResponseData"))
-}
-
-func (p *OneOfCreateRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType0)
-	}
-	return nil, errors.New("No value to marshal for OneOfCreateRateLimitPolicyApiResponseData")
-}
-
-type OneOfListPlacementPoliciesApiResponseData struct {
-	Discriminator *string                `json:"-"`
-	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    []PlacementPolicy      `json:"-"`
-}
-
-func NewOneOfListPlacementPoliciesApiResponseData() *OneOfListPlacementPoliciesApiResponseData {
-	p := new(OneOfListPlacementPoliciesApiResponseData)
-	p.Discriminator = new(string)
-	p.ObjectType_ = new(string)
-	return p
-}
-
-func (p *OneOfListPlacementPoliciesApiResponseData) SetValue(v interface{}) error {
-	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfListPlacementPoliciesApiResponseData is nil"))
-	}
-	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case []PlacementPolicy:
-		p.oneOfType0 = v.([]PlacementPolicy)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = "List<vmm.v4.images.config.PlacementPolicy>"
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = "List<vmm.v4.images.config.PlacementPolicy>"
-	default:
-		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
-	}
-	return nil
-}
-
-func (p *OneOfListPlacementPoliciesApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
-	if "List<vmm.v4.images.config.PlacementPolicy>" == *p.Discriminator {
+	if "List<vmm.v4.images.config.RateLimitPolicy>" == *p.Discriminator {
 		return p.oneOfType0
 	}
 	return nil
 }
 
-func (p *OneOfListPlacementPoliciesApiResponseData) UnmarshalJSON(b []byte) error {
+func (p *OneOfListRateLimitPoliciesApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType400 := new(import2.ErrorResponse)
 	if err := json.Unmarshal(b, vOneOfType400); err == nil {
 		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
@@ -1357,34 +2727,32 @@ func (p *OneOfListPlacementPoliciesApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	vOneOfType0 := new([]PlacementPolicy)
+	vOneOfType0 := new([]RateLimitPolicy)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-
-		if len(*vOneOfType0) == 0 || "vmm.v4.images.config.PlacementPolicy" == *((*vOneOfType0)[0].ObjectType_) {
+		if len(*vOneOfType0) == 0 || "vmm.v4.images.config.RateLimitPolicy" == *((*vOneOfType0)[0].ObjectType_) {
 			p.oneOfType0 = *vOneOfType0
 			if nil == p.Discriminator {
 				p.Discriminator = new(string)
 			}
-			*p.Discriminator = "List<vmm.v4.images.config.PlacementPolicy>"
+			*p.Discriminator = "List<vmm.v4.images.config.RateLimitPolicy>"
 			if nil == p.ObjectType_ {
 				p.ObjectType_ = new(string)
 			}
-			*p.ObjectType_ = "List<vmm.v4.images.config.PlacementPolicy>"
+			*p.ObjectType_ = "List<vmm.v4.images.config.RateLimitPolicy>"
 			return nil
-
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfListPlacementPoliciesApiResponseData"))
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfListRateLimitPoliciesApiResponseData"))
 }
 
-func (p *OneOfListPlacementPoliciesApiResponseData) MarshalJSON() ([]byte, error) {
+func (p *OneOfListRateLimitPoliciesApiResponseData) MarshalJSON() ([]byte, error) {
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType400)
 	}
-	if "List<vmm.v4.images.config.PlacementPolicy>" == *p.Discriminator {
+	if "List<vmm.v4.images.config.RateLimitPolicy>" == *p.Discriminator {
 		return json.Marshal(p.oneOfType0)
 	}
-	return nil, errors.New("No value to marshal for OneOfListPlacementPoliciesApiResponseData")
+	return nil, errors.New("No value to marshal for OneOfListRateLimitPoliciesApiResponseData")
 }
 
 type OneOfGetRateLimitPolicyApiResponseData struct {
@@ -1498,38 +2866,25 @@ func (p *OneOfGetRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("No value to marshal for OneOfGetRateLimitPolicyApiResponseData")
 }
 
-type OneOfSuspendPlacementPolicyApiResponseData struct {
+type OneOfCreatePlacementPolicyApiResponseData struct {
 	Discriminator *string                `json:"-"`
 	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
 	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
 }
 
-func NewOneOfSuspendPlacementPolicyApiResponseData() *OneOfSuspendPlacementPolicyApiResponseData {
-	p := new(OneOfSuspendPlacementPolicyApiResponseData)
+func NewOneOfCreatePlacementPolicyApiResponseData() *OneOfCreatePlacementPolicyApiResponseData {
+	p := new(OneOfCreatePlacementPolicyApiResponseData)
 	p.Discriminator = new(string)
 	p.ObjectType_ = new(string)
 	return p
 }
 
-func (p *OneOfSuspendPlacementPolicyApiResponseData) SetValue(v interface{}) error {
+func (p *OneOfCreatePlacementPolicyApiResponseData) SetValue(v interface{}) error {
 	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfSuspendPlacementPolicyApiResponseData is nil"))
+		return errors.New(fmt.Sprintf("OneOfCreatePlacementPolicyApiResponseData is nil"))
 	}
 	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
 	case import1.TaskReference:
 		if nil == p.oneOfType0 {
 			p.oneOfType0 = new(import1.TaskReference)
@@ -1543,41 +2898,36 @@ func (p *OneOfSuspendPlacementPolicyApiResponseData) SetValue(v interface{}) err
 			p.ObjectType_ = new(string)
 		}
 		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
 	default:
 		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
 	}
 	return nil
 }
 
-func (p *OneOfSuspendPlacementPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
+func (p *OneOfCreatePlacementPolicyApiResponseData) GetValue() interface{} {
 	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
 	}
 	return nil
 }
 
-func (p *OneOfSuspendPlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
-	vOneOfType400 := new(import2.ErrorResponse)
-	if err := json.Unmarshal(b, vOneOfType400); err == nil {
-		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
-			if nil == p.oneOfType400 {
-				p.oneOfType400 = new(import2.ErrorResponse)
-			}
-			*p.oneOfType400 = *vOneOfType400
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType400.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType400.ObjectType_
-			return nil
-		}
-	}
+func (p *OneOfCreatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType0 := new(import1.TaskReference)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
 		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
@@ -1596,81 +2946,6 @@ func (p *OneOfSuspendPlacementPolicyApiResponseData) UnmarshalJSON(b []byte) err
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfSuspendPlacementPolicyApiResponseData"))
-}
-
-func (p *OneOfSuspendPlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType0)
-	}
-	return nil, errors.New("No value to marshal for OneOfSuspendPlacementPolicyApiResponseData")
-}
-
-type OneOfUpdateRateLimitPolicyApiResponseData struct {
-	Discriminator *string                `json:"-"`
-	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
-}
-
-func NewOneOfUpdateRateLimitPolicyApiResponseData() *OneOfUpdateRateLimitPolicyApiResponseData {
-	p := new(OneOfUpdateRateLimitPolicyApiResponseData)
-	p.Discriminator = new(string)
-	p.ObjectType_ = new(string)
-	return p
-}
-
-func (p *OneOfUpdateRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
-	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfUpdateRateLimitPolicyApiResponseData is nil"))
-	}
-	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
-	default:
-		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
-	}
-	return nil
-}
-
-func (p *OneOfUpdateRateLimitPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
-	}
-	return nil
-}
-
-func (p *OneOfUpdateRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType400 := new(import2.ErrorResponse)
 	if err := json.Unmarshal(b, vOneOfType400); err == nil {
 		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
@@ -1689,146 +2964,17 @@ func (p *OneOfUpdateRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	vOneOfType0 := new(import1.TaskReference)
-	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
-			if nil == p.oneOfType0 {
-				p.oneOfType0 = new(import1.TaskReference)
-			}
-			*p.oneOfType0 = *vOneOfType0
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType0.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType0.ObjectType_
-			return nil
-		}
-	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfUpdateRateLimitPolicyApiResponseData"))
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfCreatePlacementPolicyApiResponseData"))
 }
 
-func (p *OneOfUpdateRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
+func (p *OneOfCreatePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType0)
 	}
-	return nil, errors.New("No value to marshal for OneOfUpdateRateLimitPolicyApiResponseData")
-}
-
-type OneOfResumePlacementPolicyApiResponseData struct {
-	Discriminator *string                `json:"-"`
-	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
-}
-
-func NewOneOfResumePlacementPolicyApiResponseData() *OneOfResumePlacementPolicyApiResponseData {
-	p := new(OneOfResumePlacementPolicyApiResponseData)
-	p.Discriminator = new(string)
-	p.ObjectType_ = new(string)
-	return p
-}
-
-func (p *OneOfResumePlacementPolicyApiResponseData) SetValue(v interface{}) error {
-	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfResumePlacementPolicyApiResponseData is nil"))
-	}
-	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
-	default:
-		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
-	}
-	return nil
-}
-
-func (p *OneOfResumePlacementPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
-	}
-	return nil
-}
-
-func (p *OneOfResumePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
-	vOneOfType400 := new(import2.ErrorResponse)
-	if err := json.Unmarshal(b, vOneOfType400); err == nil {
-		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
-			if nil == p.oneOfType400 {
-				p.oneOfType400 = new(import2.ErrorResponse)
-			}
-			*p.oneOfType400 = *vOneOfType400
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType400.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType400.ObjectType_
-			return nil
-		}
-	}
-	vOneOfType0 := new(import1.TaskReference)
-	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
-			if nil == p.oneOfType0 {
-				p.oneOfType0 = new(import1.TaskReference)
-			}
-			*p.oneOfType0 = *vOneOfType0
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType0.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType0.ObjectType_
-			return nil
-		}
-	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfResumePlacementPolicyApiResponseData"))
-}
-
-func (p *OneOfResumePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType400)
 	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType0)
-	}
-	return nil, errors.New("No value to marshal for OneOfResumePlacementPolicyApiResponseData")
+	return nil, errors.New("No value to marshal for OneOfCreatePlacementPolicyApiResponseData")
 }
 
 type OneOfGetPlacementPolicyApiResponseData struct {
@@ -1942,38 +3088,25 @@ func (p *OneOfGetPlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("No value to marshal for OneOfGetPlacementPolicyApiResponseData")
 }
 
-type OneOfDeletePlacementPolicyApiResponseData struct {
+type OneOfCreateRateLimitPolicyApiResponseData struct {
 	Discriminator *string                `json:"-"`
 	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
 	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
 }
 
-func NewOneOfDeletePlacementPolicyApiResponseData() *OneOfDeletePlacementPolicyApiResponseData {
-	p := new(OneOfDeletePlacementPolicyApiResponseData)
+func NewOneOfCreateRateLimitPolicyApiResponseData() *OneOfCreateRateLimitPolicyApiResponseData {
+	p := new(OneOfCreateRateLimitPolicyApiResponseData)
 	p.Discriminator = new(string)
 	p.ObjectType_ = new(string)
 	return p
 }
 
-func (p *OneOfDeletePlacementPolicyApiResponseData) SetValue(v interface{}) error {
+func (p *OneOfCreateRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
 	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfDeletePlacementPolicyApiResponseData is nil"))
+		return errors.New(fmt.Sprintf("OneOfCreateRateLimitPolicyApiResponseData is nil"))
 	}
 	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
 	case import1.TaskReference:
 		if nil == p.oneOfType0 {
 			p.oneOfType0 = new(import1.TaskReference)
@@ -1987,41 +3120,36 @@ func (p *OneOfDeletePlacementPolicyApiResponseData) SetValue(v interface{}) erro
 			p.ObjectType_ = new(string)
 		}
 		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
 	default:
 		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
 	}
 	return nil
 }
 
-func (p *OneOfDeletePlacementPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
+func (p *OneOfCreateRateLimitPolicyApiResponseData) GetValue() interface{} {
 	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
 	}
 	return nil
 }
 
-func (p *OneOfDeletePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
-	vOneOfType400 := new(import2.ErrorResponse)
-	if err := json.Unmarshal(b, vOneOfType400); err == nil {
-		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
-			if nil == p.oneOfType400 {
-				p.oneOfType400 = new(import2.ErrorResponse)
-			}
-			*p.oneOfType400 = *vOneOfType400
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType400.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType400.ObjectType_
-			return nil
-		}
-	}
+func (p *OneOfCreateRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType0 := new(import1.TaskReference)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
 		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
@@ -2040,81 +3168,6 @@ func (p *OneOfDeletePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfDeletePlacementPolicyApiResponseData"))
-}
-
-func (p *OneOfDeletePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType0)
-	}
-	return nil, errors.New("No value to marshal for OneOfDeletePlacementPolicyApiResponseData")
-}
-
-type OneOfUpdatePlacementPolicyApiResponseData struct {
-	Discriminator *string                `json:"-"`
-	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
-}
-
-func NewOneOfUpdatePlacementPolicyApiResponseData() *OneOfUpdatePlacementPolicyApiResponseData {
-	p := new(OneOfUpdatePlacementPolicyApiResponseData)
-	p.Discriminator = new(string)
-	p.ObjectType_ = new(string)
-	return p
-}
-
-func (p *OneOfUpdatePlacementPolicyApiResponseData) SetValue(v interface{}) error {
-	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfUpdatePlacementPolicyApiResponseData is nil"))
-	}
-	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
-	default:
-		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
-	}
-	return nil
-}
-
-func (p *OneOfUpdatePlacementPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
-	}
-	return nil
-}
-
-func (p *OneOfUpdatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType400 := new(import2.ErrorResponse)
 	if err := json.Unmarshal(b, vOneOfType400); err == nil {
 		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
@@ -2133,54 +3186,36 @@ func (p *OneOfUpdatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	vOneOfType0 := new(import1.TaskReference)
-	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
-			if nil == p.oneOfType0 {
-				p.oneOfType0 = new(import1.TaskReference)
-			}
-			*p.oneOfType0 = *vOneOfType0
-			if nil == p.Discriminator {
-				p.Discriminator = new(string)
-			}
-			*p.Discriminator = *p.oneOfType0.ObjectType_
-			if nil == p.ObjectType_ {
-				p.ObjectType_ = new(string)
-			}
-			*p.ObjectType_ = *p.oneOfType0.ObjectType_
-			return nil
-		}
-	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfUpdatePlacementPolicyApiResponseData"))
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfCreateRateLimitPolicyApiResponseData"))
 }
 
-func (p *OneOfUpdatePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
+func (p *OneOfCreateRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType0)
 	}
-	return nil, errors.New("No value to marshal for OneOfUpdatePlacementPolicyApiResponseData")
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfCreateRateLimitPolicyApiResponseData")
 }
 
-type OneOfCreatePlacementPolicyApiResponseData struct {
+type OneOfListPlacementPoliciesApiResponseData struct {
 	Discriminator *string                `json:"-"`
 	ObjectType_   *string                `json:"-"`
 	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType0    []PlacementPolicy      `json:"-"`
 }
 
-func NewOneOfCreatePlacementPolicyApiResponseData() *OneOfCreatePlacementPolicyApiResponseData {
-	p := new(OneOfCreatePlacementPolicyApiResponseData)
+func NewOneOfListPlacementPoliciesApiResponseData() *OneOfListPlacementPoliciesApiResponseData {
+	p := new(OneOfListPlacementPoliciesApiResponseData)
 	p.Discriminator = new(string)
 	p.ObjectType_ = new(string)
 	return p
 }
 
-func (p *OneOfCreatePlacementPolicyApiResponseData) SetValue(v interface{}) error {
+func (p *OneOfListPlacementPoliciesApiResponseData) SetValue(v interface{}) error {
 	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfCreatePlacementPolicyApiResponseData is nil"))
+		return errors.New(fmt.Sprintf("OneOfListPlacementPoliciesApiResponseData is nil"))
 	}
 	switch v.(type) {
 	case import2.ErrorResponse:
@@ -2196,36 +3231,33 @@ func (p *OneOfCreatePlacementPolicyApiResponseData) SetValue(v interface{}) erro
 			p.ObjectType_ = new(string)
 		}
 		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
+	case []PlacementPolicy:
+		p.oneOfType0 = v.([]PlacementPolicy)
 		if nil == p.Discriminator {
 			p.Discriminator = new(string)
 		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
+		*p.Discriminator = "List<vmm.v4.images.config.PlacementPolicy>"
 		if nil == p.ObjectType_ {
 			p.ObjectType_ = new(string)
 		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+		*p.ObjectType_ = "List<vmm.v4.images.config.PlacementPolicy>"
 	default:
 		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
 	}
 	return nil
 }
 
-func (p *OneOfCreatePlacementPolicyApiResponseData) GetValue() interface{} {
+func (p *OneOfListPlacementPoliciesApiResponseData) GetValue() interface{} {
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return *p.oneOfType400
 	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
+	if "List<vmm.v4.images.config.PlacementPolicy>" == *p.Discriminator {
+		return p.oneOfType0
 	}
 	return nil
 }
 
-func (p *OneOfCreatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
+func (p *OneOfListPlacementPoliciesApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType400 := new(import2.ErrorResponse)
 	if err := json.Unmarshal(b, vOneOfType400); err == nil {
 		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
@@ -2244,6 +3276,96 @@ func (p *OneOfCreatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
+	vOneOfType0 := new([]PlacementPolicy)
+	if err := json.Unmarshal(b, vOneOfType0); err == nil {
+		if len(*vOneOfType0) == 0 || "vmm.v4.images.config.PlacementPolicy" == *((*vOneOfType0)[0].ObjectType_) {
+			p.oneOfType0 = *vOneOfType0
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = "List<vmm.v4.images.config.PlacementPolicy>"
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = "List<vmm.v4.images.config.PlacementPolicy>"
+			return nil
+		}
+	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfListPlacementPoliciesApiResponseData"))
+}
+
+func (p *OneOfListPlacementPoliciesApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	if "List<vmm.v4.images.config.PlacementPolicy>" == *p.Discriminator {
+		return json.Marshal(p.oneOfType0)
+	}
+	return nil, errors.New("No value to marshal for OneOfListPlacementPoliciesApiResponseData")
+}
+
+type OneOfResumePlacementPolicyApiResponseData struct {
+	Discriminator *string                `json:"-"`
+	ObjectType_   *string                `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
+}
+
+func NewOneOfResumePlacementPolicyApiResponseData() *OneOfResumePlacementPolicyApiResponseData {
+	p := new(OneOfResumePlacementPolicyApiResponseData)
+	p.Discriminator = new(string)
+	p.ObjectType_ = new(string)
+	return p
+}
+
+func (p *OneOfResumePlacementPolicyApiResponseData) SetValue(v interface{}) error {
+	if nil == p {
+		return errors.New(fmt.Sprintf("OneOfResumePlacementPolicyApiResponseData is nil"))
+	}
+	switch v.(type) {
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType0.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
+	default:
+		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
+	}
+	return nil
+}
+
+func (p *OneOfResumePlacementPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
+	}
+	return nil
+}
+
+func (p *OneOfResumePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType0 := new(import1.TaskReference)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
 		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
@@ -2262,81 +3384,6 @@ func (p *OneOfCreatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfCreatePlacementPolicyApiResponseData"))
-}
-
-func (p *OneOfCreatePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType0)
-	}
-	return nil, errors.New("No value to marshal for OneOfCreatePlacementPolicyApiResponseData")
-}
-
-type OneOfDeleteRateLimitPolicyApiResponseData struct {
-	Discriminator *string                `json:"-"`
-	ObjectType_   *string                `json:"-"`
-	oneOfType400  *import2.ErrorResponse `json:"-"`
-	oneOfType0    *import1.TaskReference `json:"-"`
-}
-
-func NewOneOfDeleteRateLimitPolicyApiResponseData() *OneOfDeleteRateLimitPolicyApiResponseData {
-	p := new(OneOfDeleteRateLimitPolicyApiResponseData)
-	p.Discriminator = new(string)
-	p.ObjectType_ = new(string)
-	return p
-}
-
-func (p *OneOfDeleteRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
-	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfDeleteRateLimitPolicyApiResponseData is nil"))
-	}
-	switch v.(type) {
-	case import2.ErrorResponse:
-		if nil == p.oneOfType400 {
-			p.oneOfType400 = new(import2.ErrorResponse)
-		}
-		*p.oneOfType400 = v.(import2.ErrorResponse)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType400.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType400.ObjectType_
-	case import1.TaskReference:
-		if nil == p.oneOfType0 {
-			p.oneOfType0 = new(import1.TaskReference)
-		}
-		*p.oneOfType0 = v.(import1.TaskReference)
-		if nil == p.Discriminator {
-			p.Discriminator = new(string)
-		}
-		*p.Discriminator = *p.oneOfType0.ObjectType_
-		if nil == p.ObjectType_ {
-			p.ObjectType_ = new(string)
-		}
-		*p.ObjectType_ = *p.oneOfType0.ObjectType_
-	default:
-		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
-	}
-	return nil
-}
-
-func (p *OneOfDeleteRateLimitPolicyApiResponseData) GetValue() interface{} {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType400
-	}
-	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
-		return *p.oneOfType0
-	}
-	return nil
-}
-
-func (p *OneOfDeleteRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType400 := new(import2.ErrorResponse)
 	if err := json.Unmarshal(b, vOneOfType400); err == nil {
 		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
@@ -2355,6 +3402,81 @@ func (p *OneOfDeleteRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfResumePlacementPolicyApiResponseData"))
+}
+
+func (p *OneOfResumePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType0)
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfResumePlacementPolicyApiResponseData")
+}
+
+type OneOfSuspendPlacementPolicyApiResponseData struct {
+	Discriminator *string                `json:"-"`
+	ObjectType_   *string                `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
+}
+
+func NewOneOfSuspendPlacementPolicyApiResponseData() *OneOfSuspendPlacementPolicyApiResponseData {
+	p := new(OneOfSuspendPlacementPolicyApiResponseData)
+	p.Discriminator = new(string)
+	p.ObjectType_ = new(string)
+	return p
+}
+
+func (p *OneOfSuspendPlacementPolicyApiResponseData) SetValue(v interface{}) error {
+	if nil == p {
+		return errors.New(fmt.Sprintf("OneOfSuspendPlacementPolicyApiResponseData is nil"))
+	}
+	switch v.(type) {
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType0.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
+	default:
+		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
+	}
+	return nil
+}
+
+func (p *OneOfSuspendPlacementPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
+	}
+	return nil
+}
+
+func (p *OneOfSuspendPlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
 	vOneOfType0 := new(import1.TaskReference)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
 		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
@@ -2373,17 +3495,146 @@ func (p *OneOfDeleteRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfDeleteRateLimitPolicyApiResponseData"))
+	vOneOfType400 := new(import2.ErrorResponse)
+	if err := json.Unmarshal(b, vOneOfType400); err == nil {
+		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
+			if nil == p.oneOfType400 {
+				p.oneOfType400 = new(import2.ErrorResponse)
+			}
+			*p.oneOfType400 = *vOneOfType400
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType400.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType400.ObjectType_
+			return nil
+		}
+	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfSuspendPlacementPolicyApiResponseData"))
 }
 
-func (p *OneOfDeleteRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
-	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
-		return json.Marshal(p.oneOfType400)
-	}
+func (p *OneOfSuspendPlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
 	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType0)
 	}
-	return nil, errors.New("No value to marshal for OneOfDeleteRateLimitPolicyApiResponseData")
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfSuspendPlacementPolicyApiResponseData")
+}
+
+type OneOfUpdateRateLimitPolicyApiResponseData struct {
+	Discriminator *string                `json:"-"`
+	ObjectType_   *string                `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
+}
+
+func NewOneOfUpdateRateLimitPolicyApiResponseData() *OneOfUpdateRateLimitPolicyApiResponseData {
+	p := new(OneOfUpdateRateLimitPolicyApiResponseData)
+	p.Discriminator = new(string)
+	p.ObjectType_ = new(string)
+	return p
+}
+
+func (p *OneOfUpdateRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
+	if nil == p {
+		return errors.New(fmt.Sprintf("OneOfUpdateRateLimitPolicyApiResponseData is nil"))
+	}
+	switch v.(type) {
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType0.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
+	default:
+		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
+	}
+	return nil
+}
+
+func (p *OneOfUpdateRateLimitPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
+	}
+	return nil
+}
+
+func (p *OneOfUpdateRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
+	vOneOfType0 := new(import1.TaskReference)
+	if err := json.Unmarshal(b, vOneOfType0); err == nil {
+		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
+			if nil == p.oneOfType0 {
+				p.oneOfType0 = new(import1.TaskReference)
+			}
+			*p.oneOfType0 = *vOneOfType0
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType0.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType0.ObjectType_
+			return nil
+		}
+	}
+	vOneOfType400 := new(import2.ErrorResponse)
+	if err := json.Unmarshal(b, vOneOfType400); err == nil {
+		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
+			if nil == p.oneOfType400 {
+				p.oneOfType400 = new(import2.ErrorResponse)
+			}
+			*p.oneOfType400 = *vOneOfType400
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType400.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType400.ObjectType_
+			return nil
+		}
+	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfUpdateRateLimitPolicyApiResponseData"))
+}
+
+func (p *OneOfUpdateRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType0)
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfUpdateRateLimitPolicyApiResponseData")
 }
 
 type OneOfListEffectiveRateLimitPoliciesApiResponseData struct {
@@ -2465,7 +3716,6 @@ func (p *OneOfListEffectiveRateLimitPoliciesApiResponseData) UnmarshalJSON(b []b
 	}
 	vOneOfType0 := new([]EffectiveRateLimitPolicy)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-
 		if len(*vOneOfType0) == 0 || "vmm.v4.images.config.EffectiveRateLimitPolicy" == *((*vOneOfType0)[0].ObjectType_) {
 			p.oneOfType0 = *vOneOfType0
 			if nil == p.Discriminator {
@@ -2477,7 +3727,6 @@ func (p *OneOfListEffectiveRateLimitPoliciesApiResponseData) UnmarshalJSON(b []b
 			}
 			*p.ObjectType_ = "List<vmm.v4.images.config.EffectiveRateLimitPolicy>"
 			return nil
-
 		}
 	}
 	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfListEffectiveRateLimitPoliciesApiResponseData"))
@@ -2493,35 +3742,38 @@ func (p *OneOfListEffectiveRateLimitPoliciesApiResponseData) MarshalJSON() ([]by
 	return nil, errors.New("No value to marshal for OneOfListEffectiveRateLimitPoliciesApiResponseData")
 }
 
-type OneOfListRateLimitPoliciesApiResponseData struct {
+type OneOfDeleteRateLimitPolicyApiResponseData struct {
 	Discriminator *string                `json:"-"`
 	ObjectType_   *string                `json:"-"`
-	oneOfType0    []RateLimitPolicy      `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
 	oneOfType400  *import2.ErrorResponse `json:"-"`
 }
 
-func NewOneOfListRateLimitPoliciesApiResponseData() *OneOfListRateLimitPoliciesApiResponseData {
-	p := new(OneOfListRateLimitPoliciesApiResponseData)
+func NewOneOfDeleteRateLimitPolicyApiResponseData() *OneOfDeleteRateLimitPolicyApiResponseData {
+	p := new(OneOfDeleteRateLimitPolicyApiResponseData)
 	p.Discriminator = new(string)
 	p.ObjectType_ = new(string)
 	return p
 }
 
-func (p *OneOfListRateLimitPoliciesApiResponseData) SetValue(v interface{}) error {
+func (p *OneOfDeleteRateLimitPolicyApiResponseData) SetValue(v interface{}) error {
 	if nil == p {
-		return errors.New(fmt.Sprintf("OneOfListRateLimitPoliciesApiResponseData is nil"))
+		return errors.New(fmt.Sprintf("OneOfDeleteRateLimitPolicyApiResponseData is nil"))
 	}
 	switch v.(type) {
-	case []RateLimitPolicy:
-		p.oneOfType0 = v.([]RateLimitPolicy)
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
 		if nil == p.Discriminator {
 			p.Discriminator = new(string)
 		}
-		*p.Discriminator = "List<vmm.v4.images.config.RateLimitPolicy>"
+		*p.Discriminator = *p.oneOfType0.ObjectType_
 		if nil == p.ObjectType_ {
 			p.ObjectType_ = new(string)
 		}
-		*p.ObjectType_ = "List<vmm.v4.images.config.RateLimitPolicy>"
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
 	case import2.ErrorResponse:
 		if nil == p.oneOfType400 {
 			p.oneOfType400 = new(import2.ErrorResponse)
@@ -2541,9 +3793,9 @@ func (p *OneOfListRateLimitPoliciesApiResponseData) SetValue(v interface{}) erro
 	return nil
 }
 
-func (p *OneOfListRateLimitPoliciesApiResponseData) GetValue() interface{} {
-	if "List<vmm.v4.images.config.RateLimitPolicy>" == *p.Discriminator {
-		return p.oneOfType0
+func (p *OneOfDeleteRateLimitPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
 	}
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return *p.oneOfType400
@@ -2551,22 +3803,23 @@ func (p *OneOfListRateLimitPoliciesApiResponseData) GetValue() interface{} {
 	return nil
 }
 
-func (p *OneOfListRateLimitPoliciesApiResponseData) UnmarshalJSON(b []byte) error {
-	vOneOfType0 := new([]RateLimitPolicy)
+func (p *OneOfDeleteRateLimitPolicyApiResponseData) UnmarshalJSON(b []byte) error {
+	vOneOfType0 := new(import1.TaskReference)
 	if err := json.Unmarshal(b, vOneOfType0); err == nil {
-
-		if len(*vOneOfType0) == 0 || "vmm.v4.images.config.RateLimitPolicy" == *((*vOneOfType0)[0].ObjectType_) {
-			p.oneOfType0 = *vOneOfType0
+		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
+			if nil == p.oneOfType0 {
+				p.oneOfType0 = new(import1.TaskReference)
+			}
+			*p.oneOfType0 = *vOneOfType0
 			if nil == p.Discriminator {
 				p.Discriminator = new(string)
 			}
-			*p.Discriminator = "List<vmm.v4.images.config.RateLimitPolicy>"
+			*p.Discriminator = *p.oneOfType0.ObjectType_
 			if nil == p.ObjectType_ {
 				p.ObjectType_ = new(string)
 			}
-			*p.ObjectType_ = "List<vmm.v4.images.config.RateLimitPolicy>"
+			*p.ObjectType_ = *p.oneOfType0.ObjectType_
 			return nil
-
 		}
 	}
 	vOneOfType400 := new(import2.ErrorResponse)
@@ -2587,17 +3840,239 @@ func (p *OneOfListRateLimitPoliciesApiResponseData) UnmarshalJSON(b []byte) erro
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfListRateLimitPoliciesApiResponseData"))
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfDeleteRateLimitPolicyApiResponseData"))
 }
 
-func (p *OneOfListRateLimitPoliciesApiResponseData) MarshalJSON() ([]byte, error) {
-	if "List<vmm.v4.images.config.RateLimitPolicy>" == *p.Discriminator {
+func (p *OneOfDeleteRateLimitPolicyApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType0)
 	}
 	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
 		return json.Marshal(p.oneOfType400)
 	}
-	return nil, errors.New("No value to marshal for OneOfListRateLimitPoliciesApiResponseData")
+	return nil, errors.New("No value to marshal for OneOfDeleteRateLimitPolicyApiResponseData")
+}
+
+type OneOfDeletePlacementPolicyApiResponseData struct {
+	Discriminator *string                `json:"-"`
+	ObjectType_   *string                `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
+}
+
+func NewOneOfDeletePlacementPolicyApiResponseData() *OneOfDeletePlacementPolicyApiResponseData {
+	p := new(OneOfDeletePlacementPolicyApiResponseData)
+	p.Discriminator = new(string)
+	p.ObjectType_ = new(string)
+	return p
+}
+
+func (p *OneOfDeletePlacementPolicyApiResponseData) SetValue(v interface{}) error {
+	if nil == p {
+		return errors.New(fmt.Sprintf("OneOfDeletePlacementPolicyApiResponseData is nil"))
+	}
+	switch v.(type) {
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType0.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
+	default:
+		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
+	}
+	return nil
+}
+
+func (p *OneOfDeletePlacementPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
+	}
+	return nil
+}
+
+func (p *OneOfDeletePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
+	vOneOfType0 := new(import1.TaskReference)
+	if err := json.Unmarshal(b, vOneOfType0); err == nil {
+		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
+			if nil == p.oneOfType0 {
+				p.oneOfType0 = new(import1.TaskReference)
+			}
+			*p.oneOfType0 = *vOneOfType0
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType0.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType0.ObjectType_
+			return nil
+		}
+	}
+	vOneOfType400 := new(import2.ErrorResponse)
+	if err := json.Unmarshal(b, vOneOfType400); err == nil {
+		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
+			if nil == p.oneOfType400 {
+				p.oneOfType400 = new(import2.ErrorResponse)
+			}
+			*p.oneOfType400 = *vOneOfType400
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType400.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType400.ObjectType_
+			return nil
+		}
+	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfDeletePlacementPolicyApiResponseData"))
+}
+
+func (p *OneOfDeletePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType0)
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfDeletePlacementPolicyApiResponseData")
+}
+
+type OneOfUpdatePlacementPolicyApiResponseData struct {
+	Discriminator *string                `json:"-"`
+	ObjectType_   *string                `json:"-"`
+	oneOfType0    *import1.TaskReference `json:"-"`
+	oneOfType400  *import2.ErrorResponse `json:"-"`
+}
+
+func NewOneOfUpdatePlacementPolicyApiResponseData() *OneOfUpdatePlacementPolicyApiResponseData {
+	p := new(OneOfUpdatePlacementPolicyApiResponseData)
+	p.Discriminator = new(string)
+	p.ObjectType_ = new(string)
+	return p
+}
+
+func (p *OneOfUpdatePlacementPolicyApiResponseData) SetValue(v interface{}) error {
+	if nil == p {
+		return errors.New(fmt.Sprintf("OneOfUpdatePlacementPolicyApiResponseData is nil"))
+	}
+	switch v.(type) {
+	case import1.TaskReference:
+		if nil == p.oneOfType0 {
+			p.oneOfType0 = new(import1.TaskReference)
+		}
+		*p.oneOfType0 = v.(import1.TaskReference)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType0.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType0.ObjectType_
+	case import2.ErrorResponse:
+		if nil == p.oneOfType400 {
+			p.oneOfType400 = new(import2.ErrorResponse)
+		}
+		*p.oneOfType400 = v.(import2.ErrorResponse)
+		if nil == p.Discriminator {
+			p.Discriminator = new(string)
+		}
+		*p.Discriminator = *p.oneOfType400.ObjectType_
+		if nil == p.ObjectType_ {
+			p.ObjectType_ = new(string)
+		}
+		*p.ObjectType_ = *p.oneOfType400.ObjectType_
+	default:
+		return errors.New(fmt.Sprintf("%T(%v) is not expected type", v, v))
+	}
+	return nil
+}
+
+func (p *OneOfUpdatePlacementPolicyApiResponseData) GetValue() interface{} {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType0
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return *p.oneOfType400
+	}
+	return nil
+}
+
+func (p *OneOfUpdatePlacementPolicyApiResponseData) UnmarshalJSON(b []byte) error {
+	vOneOfType0 := new(import1.TaskReference)
+	if err := json.Unmarshal(b, vOneOfType0); err == nil {
+		if "prism.v4.config.TaskReference" == *vOneOfType0.ObjectType_ {
+			if nil == p.oneOfType0 {
+				p.oneOfType0 = new(import1.TaskReference)
+			}
+			*p.oneOfType0 = *vOneOfType0
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType0.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType0.ObjectType_
+			return nil
+		}
+	}
+	vOneOfType400 := new(import2.ErrorResponse)
+	if err := json.Unmarshal(b, vOneOfType400); err == nil {
+		if "vmm.v4.error.ErrorResponse" == *vOneOfType400.ObjectType_ {
+			if nil == p.oneOfType400 {
+				p.oneOfType400 = new(import2.ErrorResponse)
+			}
+			*p.oneOfType400 = *vOneOfType400
+			if nil == p.Discriminator {
+				p.Discriminator = new(string)
+			}
+			*p.Discriminator = *p.oneOfType400.ObjectType_
+			if nil == p.ObjectType_ {
+				p.ObjectType_ = new(string)
+			}
+			*p.ObjectType_ = *p.oneOfType400.ObjectType_
+			return nil
+		}
+	}
+	return errors.New(fmt.Sprintf("Unable to unmarshal for OneOfUpdatePlacementPolicyApiResponseData"))
+}
+
+func (p *OneOfUpdatePlacementPolicyApiResponseData) MarshalJSON() ([]byte, error) {
+	if p.oneOfType0 != nil && *p.oneOfType0.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType0)
+	}
+	if p.oneOfType400 != nil && *p.oneOfType400.ObjectType_ == *p.Discriminator {
+		return json.Marshal(p.oneOfType400)
+	}
+	return nil, errors.New("No value to marshal for OneOfUpdatePlacementPolicyApiResponseData")
 }
 
 type FileDetail struct {

@@ -1,4 +1,3 @@
-//Api classes for prism's golang SDK
 package api
 
 import (
@@ -33,14 +32,14 @@ func NewCategoriesApi(apiClient *client.ApiClient) *CategoriesApi {
 	return a
 }
 
-// Create a category with the given key and value.
+// Creates a category with a given key and value pair.
 func (api *CategoriesApi) CreateCategory(body *import2.Category, args ...map[string]interface{}) (*import2.CreateCategoryApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/prism/v4.0.b1/config/categories"
+	uri := "/api/prism/v4.2/config/categories"
 
 	// verify the required parameter 'body' is set
 	if nil == body {
@@ -62,8 +61,8 @@ func (api *CategoriesApi) CreateCategory(body *import2.Category, args ...map[str
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
@@ -71,24 +70,24 @@ func (api *CategoriesApi) CreateCategory(body *import2.Category, args ...map[str
 
 	authNames := []string{"basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodPost, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodPost, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
 	unmarshalledResp := new(import2.CreateCategoryApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
-// Delete a category with the given external identifier.
+// Deletes a category with the given external identifier.
 func (api *CategoriesApi) DeleteCategoryById(extId *string, args ...map[string]interface{}) (*import2.DeleteCategoryApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/prism/v4.0.b1/config/categories/{extId}"
+	uri := "/api/prism/v4.2/config/categories/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -96,7 +95,6 @@ func (api *CategoriesApi) DeleteCategoryById(extId *string, args ...map[string]i
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -113,8 +111,8 @@ func (api *CategoriesApi) DeleteCategoryById(extId *string, args ...map[string]i
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
@@ -122,24 +120,24 @@ func (api *CategoriesApi) DeleteCategoryById(extId *string, args ...map[string]i
 
 	authNames := []string{"basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodDelete, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodDelete, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
 	unmarshalledResp := new(import2.DeleteCategoryApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
-// Fetch details of a category with the given external identifier.
+// Fetches the details of a category with the given external identifier.
 func (api *CategoriesApi) GetCategoryById(extId *string, expand_ *string, args ...map[string]interface{}) (*import2.GetCategoryApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/prism/v4.0.b1/config/categories/{extId}"
+	uri := "/api/prism/v4.2/config/categories/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -147,7 +145,6 @@ func (api *CategoriesApi) GetCategoryById(extId *string, expand_ *string, args .
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -161,7 +158,6 @@ func (api *CategoriesApi) GetCategoryById(extId *string, expand_ *string, args .
 
 	// Query Params
 	if expand_ != nil {
-
 		queryParams.Add("$expand", client.ParameterToString(*expand_, ""))
 	}
 	// Headers provided explicitly on operation takes precedence
@@ -169,8 +165,8 @@ func (api *CategoriesApi) GetCategoryById(extId *string, expand_ *string, args .
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
@@ -178,24 +174,24 @@ func (api *CategoriesApi) GetCategoryById(extId *string, expand_ *string, args .
 
 	authNames := []string{"basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
 	unmarshalledResp := new(import2.GetCategoryApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
-// Fetch a list of categories with pagination, filtering, sorting, selection and optional expansion of associated entity counts.
+// Fetches a list of categories with pagination, filtering, sorting, selection, and optional expansion of associated entity counts.
 func (api *CategoriesApi) ListCategories(page_ *int, limit_ *int, filter_ *string, orderby_ *string, expand_ *string, select_ *string, args ...map[string]interface{}) (*import2.ListCategoriesApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/prism/v4.0.b1/config/categories"
+	uri := "/api/prism/v4.2/config/categories"
 
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -209,27 +205,21 @@ func (api *CategoriesApi) ListCategories(page_ *int, limit_ *int, filter_ *strin
 
 	// Query Params
 	if page_ != nil {
-
 		queryParams.Add("$page", client.ParameterToString(*page_, ""))
 	}
 	if limit_ != nil {
-
 		queryParams.Add("$limit", client.ParameterToString(*limit_, ""))
 	}
 	if filter_ != nil {
-
 		queryParams.Add("$filter", client.ParameterToString(*filter_, ""))
 	}
 	if orderby_ != nil {
-
 		queryParams.Add("$orderby", client.ParameterToString(*orderby_, ""))
 	}
 	if expand_ != nil {
-
 		queryParams.Add("$expand", client.ParameterToString(*expand_, ""))
 	}
 	if select_ != nil {
-
 		queryParams.Add("$select", client.ParameterToString(*select_, ""))
 	}
 	// Headers provided explicitly on operation takes precedence
@@ -237,8 +227,8 @@ func (api *CategoriesApi) ListCategories(page_ *int, limit_ *int, filter_ *strin
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
@@ -246,24 +236,24 @@ func (api *CategoriesApi) ListCategories(page_ *int, limit_ *int, filter_ *strin
 
 	authNames := []string{"basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
 	unmarshalledResp := new(import2.ListCategoriesApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
-// Update a category's description, value and owner properties.
+// Updates the description, value, and owner properties of a category.
 func (api *CategoriesApi) UpdateCategoryById(extId *string, body *import2.Category, args ...map[string]interface{}) (*import2.UpdateCategoryApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/prism/v4.0.b1/config/categories/{extId}"
+	uri := "/api/prism/v4.2/config/categories/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -275,7 +265,6 @@ func (api *CategoriesApi) UpdateCategoryById(extId *string, body *import2.Catego
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -292,8 +281,8 @@ func (api *CategoriesApi) UpdateCategoryById(extId *string, body *import2.Catego
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
@@ -301,12 +290,12 @@ func (api *CategoriesApi) UpdateCategoryById(extId *string, body *import2.Catego
 
 	authNames := []string{"basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodPut, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodPut, body, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
 	unmarshalledResp := new(import2.UpdateCategoryApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }

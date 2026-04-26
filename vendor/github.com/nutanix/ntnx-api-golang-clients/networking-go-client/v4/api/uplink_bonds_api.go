@@ -1,10 +1,9 @@
-//Api classes for networking's golang SDK
 package api
 
 import (
 	"encoding/json"
 	"github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/client"
-	import1 "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
+	import2 "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,13 +33,13 @@ func NewUplinkBondsApi(apiClient *client.ApiClient) *UplinkBondsApi {
 }
 
 // Get the uplink bond for the given extId.
-func (api *UplinkBondsApi) GetUplinkBondById(extId *string, args ...map[string]interface{}) (*import1.GetUplinkBondApiResponse, error) {
+func (api *UplinkBondsApi) GetUplinkBondById(extId *string, args ...map[string]interface{}) (*import2.GetUplinkBondApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/uplink-bonds/{extId}"
+	uri := "/api/networking/v4.2/config/uplink-bonds/{extId}"
 
 	// verify the required parameter 'extId' is set
 	if nil == extId {
@@ -48,7 +47,6 @@ func (api *UplinkBondsApi) GetUplinkBondById(extId *string, args ...map[string]i
 	}
 
 	// Path Params
-
 	uri = strings.Replace(uri, "{"+"extId"+"}", url.PathEscape(client.ParameterToString(*extId, "")), -1)
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -65,33 +63,33 @@ func (api *UplinkBondsApi) GetUplinkBondById(extId *string, args ...map[string]i
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.GetUplinkBondApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.GetUplinkBondApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
 
 // List uplink bonds.
-func (api *UplinkBondsApi) ListUplinkBonds(page_ *int, limit_ *int, filter_ *string, orderby_ *string, args ...map[string]interface{}) (*import1.ListUplinkBondsApiResponse, error) {
+func (api *UplinkBondsApi) ListUplinkBonds(page_ *int, limit_ *int, filter_ *string, orderby_ *string, args ...map[string]interface{}) (*import2.ListUplinkBondsApiResponse, error) {
 	argMap := make(map[string]interface{})
 	if len(args) > 0 {
 		argMap = args[0]
 	}
 
-	uri := "/api/networking/v4.0.b1/config/uplink-bonds"
+	uri := "/api/networking/v4.2/config/uplink-bonds"
 
 	headerParams := make(map[string]string)
 	queryParams := url.Values{}
@@ -105,19 +103,15 @@ func (api *UplinkBondsApi) ListUplinkBonds(page_ *int, limit_ *int, filter_ *str
 
 	// Query Params
 	if page_ != nil {
-
 		queryParams.Add("$page", client.ParameterToString(*page_, ""))
 	}
 	if limit_ != nil {
-
 		queryParams.Add("$limit", client.ParameterToString(*limit_, ""))
 	}
 	if filter_ != nil {
-
 		queryParams.Add("$filter", client.ParameterToString(*filter_, ""))
 	}
 	if orderby_ != nil {
-
 		queryParams.Add("$orderby", client.ParameterToString(*orderby_, ""))
 	}
 	// Headers provided explicitly on operation takes precedence
@@ -125,21 +119,21 @@ func (api *UplinkBondsApi) ListUplinkBonds(page_ *int, limit_ *int, filter_ *str
 		// Skip platform generated headers
 		if !api.headersToSkip[strings.ToLower(headerKey)] {
 			if value != nil {
-				if headerValue, headerValueOk := value.(string); headerValueOk {
-					headerParams[headerKey] = headerValue
+				if headerValue, headerValueOk := value.(*string); headerValueOk {
+					headerParams[headerKey] = *headerValue
 				}
 			}
 		}
 	}
 
-	authNames := []string{"basicAuthScheme"}
+	authNames := []string{"apiKeyAuthScheme", "basicAuthScheme"}
 
-	responseBody, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
-	if nil != err || nil == responseBody {
+	apiClientResponse, err := api.ApiClient.CallApi(&uri, http.MethodGet, nil, queryParams, headerParams, formParams, accepts, contentTypes, authNames)
+	if nil != err || nil == apiClientResponse {
 		return nil, err
 	}
 
-	unmarshalledResp := new(import1.ListUplinkBondsApiResponse)
-	json.Unmarshal(responseBody.([]byte), &unmarshalledResp)
+	unmarshalledResp := new(import2.ListUplinkBondsApiResponse)
+	json.Unmarshal(apiClientResponse.([]byte), &unmarshalledResp)
 	return unmarshalledResp, err
 }
