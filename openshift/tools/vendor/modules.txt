@@ -20,7 +20,7 @@ github.com/emicklei/go-restful/v3/log
 ## explicit; go 1.18
 github.com/evanphx/json-patch/v5
 github.com/evanphx/json-patch/v5/internal/json
-# github.com/fxamacker/cbor/v2 v2.9.0
+# github.com/fxamacker/cbor/v2 v2.9.1
 ## explicit; go 1.20
 github.com/fxamacker/cbor/v2
 # github.com/go-errors/errors v1.4.2
@@ -108,10 +108,10 @@ github.com/munnerz/goautoneg
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/openshift/api v0.0.0-20260306141135-f595753a3e66
+# github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80
 ## explicit; go 1.25.0
 github.com/openshift/api/config/v1
-# github.com/openshift/cluster-capi-operator/manifests-gen v0.0.0-20260404022622-eb4433469646
+# github.com/openshift/cluster-capi-operator/manifests-gen v0.0.0-20260429150927-40757eb5602c
 ## explicit; go 1.25.0
 github.com/openshift/cluster-capi-operator/manifests-gen
 github.com/openshift/cluster-capi-operator/manifests-gen/providermetadata
@@ -193,7 +193,7 @@ gopkg.in/evanphx/json-patch.v4
 # gopkg.in/inf.v0 v0.9.1
 ## explicit
 gopkg.in/inf.v0
-# k8s.io/api v0.35.2
+# k8s.io/api v0.35.3
 ## explicit; go 1.25.0
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1alpha1
@@ -252,11 +252,11 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/storagemigration/v1beta1
-# k8s.io/apiextensions-apiserver v0.35.2
+# k8s.io/apiextensions-apiserver v0.35.3
 ## explicit; go 1.25.0
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-# k8s.io/apimachinery v0.35.2
+# k8s.io/apimachinery v0.35.3
 ## explicit; go 1.25.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -313,7 +313,7 @@ k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.35.2
+# k8s.io/client-go v0.35.3
 ## explicit; go 1.25.0
 k8s.io/client-go/discovery
 k8s.io/client-go/dynamic
@@ -360,7 +360,7 @@ k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/utils v0.0.0-20260108192941-914a6e750570
+# k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
 ## explicit; go 1.23
 k8s.io/utils/clock
 k8s.io/utils/internal/third_party/forked/golang/net
