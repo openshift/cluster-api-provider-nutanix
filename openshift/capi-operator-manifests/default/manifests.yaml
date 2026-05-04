@@ -2569,6 +2569,8 @@ spec:
         - --zap-log-level=${NUTANIX_LOG_LEVEL=info}
         - --zap-devel=${NUTANIX_LOG_DEVELOPMENT=true}
         - --zap-stacktrace-level=${NUTANIX_LOG_STACKTRACE_LEVEL=panic}
+        - --tls-min-version=${TLS_MIN_VERSION}
+        - --tls-cipher-suites=${TLS_CIPHER_SUITES}
         env:
         - name: POD_NAMESPACE
           valueFrom:
