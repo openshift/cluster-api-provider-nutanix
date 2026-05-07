@@ -2678,6 +2678,9 @@ webhooks:
       path: /mutate-infrastructure-cluster-x-k8s-io-v1beta1-nutanixmachinetemplate
   failurePolicy: Fail
   name: default.nutanixmachinetemplate.infrastructure.cluster.x-k8s.io
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: openshift-cluster-api
   rules:
   - apiGroups:
     - infrastructure.cluster.x-k8s.io
