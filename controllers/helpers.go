@@ -19,6 +19,7 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -29,9 +30,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nutanix-cloud-native/prism-go-client/converged"
-	v4Converged "github.com/nutanix-cloud-native/prism-go-client/converged/v4"
-	prismclientv3 "github.com/nutanix-cloud-native/prism-go-client/v3"
 	clusterModels "github.com/nutanix/ntnx-api-golang-clients/clustermgmt-go-client/v4/models/clustermgmt/v4/config"
 	subnetModels "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
 	prismModels "github.com/nutanix/ntnx-api-golang-clients/prism-go-client/v4/models/prism/v4/config"
@@ -40,6 +38,7 @@ import (
 	volumesconfig "github.com/nutanix/ntnx-api-golang-clients/volumes-go-client/v4/models/volumes/v4/config"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/utils/ptr"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck // suppress complaining on Deprecated package
@@ -47,9 +46,14 @@ import (
 	v1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"         //nolint:staticcheck // suppress complaining on Deprecated package
 	v1beta2conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions/v1beta2" //nolint:staticcheck // suppress complaining on Deprecated package
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
 	nutanixclient "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/client"
+	nctx "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/context"
+	"github.com/nutanix-cloud-native/prism-go-client/converged"
+	v4Converged "github.com/nutanix-cloud-native/prism-go-client/converged/v4"
+	prismclientv3 "github.com/nutanix-cloud-native/prism-go-client/v3"
 )
 
 const (
@@ -64,6 +68,22 @@ const (
 
 	createErrorFailureReason  = "CreateError"
 	powerOnErrorFailureReason = "PowerOnError"
+
+	CAPXProjectPolicyAnnotation      = "capx.nutanix.com/project-policy"
+	CAPXProjectPolicyDefaultOnly     = "default-only"
+	CAPXProjectPolicyUnrestricted    = "unrestricted"
+	metroFailureDomainPrefix         = "NutanixMetro/"
+	metroSiteFailureDomainPrefix     = "NutanixMetroSite/"
+	metroNativeFailureDomainLabelKey = "metro.nutanix.com/native-failuredomain"
+	metroNativePELabelKey            = "metro.nutanix.com/native-pe"
+
+	// clusterScopeMovementGroupName is the well-known key of the cluster-scope movement group within
+	// a NutanixVirtualHADomain's MovementGroups. Only this scope is supported for now; nodepool-scope
+	// movement groups are not yet handled.
+	clusterScopeMovementGroupName = "default"
+
+	vmCustomAttributePrefix4MetroPreferredPE        = "metro-preferred-pe:"
+	vmCustomAttributePrefix4MetroNodeGroupNameLabel = "metro-node-group-name:"
 )
 
 type StorageContainerIntentResponse struct {
@@ -71,6 +91,39 @@ type StorageContainerIntentResponse struct {
 	UUID        *string
 	ClusterName *string
 	ClusterUUID *string
+}
+
+// terminalError represents a deterministic, non-retryable error caused by
+// invalid user configuration (e.g. referenced resource does not exist).
+// It is distinct from converged.APIError which represents HTTP-level failures.
+type terminalError struct {
+	message string
+}
+
+func (e *terminalError) Error() string { return e.message }
+
+func isTerminalError(err error) bool {
+	var te *terminalError
+	return errors.As(err, &te)
+}
+
+func isRetryableAPIError(err error) bool {
+	switch {
+	case converged.IsNotFound(err), isTerminalError(err):
+		return false
+	case converged.IsRateLimit(err), converged.IsInternal(err):
+		return true
+	default:
+		// Converged API errors with Kind == nil are parsed HTTP responses that
+		// are not expected to succeed on retry (for example, 4xx validation errors).
+		// Non-API errors (for example, transport/network timeouts) remain
+		// retryable.
+		var apiErr *converged.APIError
+		if errors.As(err, &apiErr) {
+			return false
+		}
+		return true
+	}
 }
 
 // DeleteVM deletes a VM and is invoked by the NutanixMachineReconciler
@@ -127,14 +180,14 @@ func GetVMUUID(machine *capiv1beta2.Machine, nutanixMachine *infrav1.NutanixMach
 	if machine != nil && machine.Status.NodeInfo != nil && machine.Status.NodeInfo.SystemUUID != "" {
 		systemUUID := machine.Status.NodeInfo.SystemUUID
 		if _, err := uuid.Parse(systemUUID); err != nil {
-			return "", fmt.Errorf("Machine.Status.NodeInfo.SystemUUID was set but was not a valid UUID: %s err: %v", systemUUID, err)
+			return "", fmt.Errorf("Machine.Status.NodeInfo.SystemUUID was set but was not a valid UUID: %s err: %w", systemUUID, err)
 		}
 		return systemUUID, nil
 	}
 	vmUUID := nutanixMachine.Status.VmUUID
 	if vmUUID != "" {
 		if _, err := uuid.Parse(vmUUID); err != nil {
-			return "", fmt.Errorf("VMUUID was set but was not a valid UUID: %s err: %v", vmUUID, err)
+			return "", fmt.Errorf("VMUUID was set but was not a valid UUID: %s err: %w", vmUUID, err)
 		}
 		return vmUUID, nil
 	}
@@ -200,45 +253,72 @@ func FindVMByName(ctx context.Context, client *v4Converged.Client, vmName string
 	return FindVMByUUID(ctx, client, *vms[0].ExtId)
 }
 
-// GetPEUUID returns the UUID of the Prism Element cluster with the given name
+// GetPEUUID returns the UUID of the Prism Element cluster with the given name or UUID.
 func GetPEUUID(ctx context.Context, client *v4Converged.Client, peName, peUUID *string) (string, error) {
-	if client == nil {
-		return "", fmt.Errorf("cannot retrieve Prism Element UUID if nutanix client is nil")
+	peCluster, err := GetPEClusterByIdentifier(ctx, client, peName, peUUID)
+	if err != nil {
+		return "", err
 	}
-	if peUUID == nil && peName == nil {
-		return "", fmt.Errorf("cluster name or uuid must be passed in order to retrieve the Prism Element UUID")
+	return ptr.Deref(peCluster.ExtId, ""), nil
+}
+
+// GetPECluster returns the Prism Element cluster with the given UUID.
+func GetPECluster(ctx context.Context, client *v4Converged.Client, peUUID string) (*clusterModels.Cluster, error) {
+	peCluster, err := client.Clusters.Get(ctx, peUUID)
+	if err != nil {
+		if converged.IsNotFound(err) {
+			return nil, fmt.Errorf("failed to find Prism Element cluster with UUID %s: %w", peUUID, err)
+		}
+		return nil, fmt.Errorf("failed to get Prism Element cluster with UUID %s: %w", peUUID, err)
+	}
+
+	return peCluster, nil
+}
+
+// GetPEClusterByIdentifier resolves a Prism Element cluster by UUID or name and returns the full
+// cluster object in a single API call. Callers that only need the UUID can use GetPEUUID; callers
+// that need the cluster object (for example to read Config.IsAvailable) should prefer this over
+// GetPEUUID followed by GetPECluster, which performs a redundant List+Get round trip.
+func GetPEClusterByIdentifier(ctx context.Context, client *v4Converged.Client, peName, peUUID *string) (*clusterModels.Cluster, error) {
+	if client == nil {
+		return nil, fmt.Errorf("cannot retrieve Prism Element cluster if nutanix client is nil")
 	}
 	if peUUID != nil && *peUUID != "" {
-		peIntentResponse, err := client.Clusters.Get(ctx, *peUUID)
-		if err != nil {
-			if converged.IsNotFound(err) {
-				return "", fmt.Errorf("failed to find Prism Element cluster with UUID %s: %w", *peUUID, err)
-			}
-			return "", fmt.Errorf("failed to get Prism Element cluster with UUID %s: %v", *peUUID, err)
-		}
-		return *peIntentResponse.ExtId, nil
-	} else if peName != nil && *peName != "" {
+		return GetPECluster(ctx, client, *peUUID)
+	}
+	if peName != nil && *peName != "" {
 		responsePEs, err := client.Clusters.List(ctx, converged.WithFilter(fmt.Sprintf("name eq '%s'", *peName)))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		// Validate filtered PEs
 		foundPEs := make([]clusterModels.Cluster, 0)
 		for _, s := range responsePEs {
 			if strings.EqualFold(*s.Name, *peName) && hasPEClusterServiceEnabled(&s) {
 				foundPEs = append(foundPEs, s)
 			}
 		}
-		if len(foundPEs) == 1 {
-			return *foundPEs[0].ExtId, nil
-		}
-		if len(foundPEs) == 0 {
-			return "", fmt.Errorf("failed to retrieve Prism Element cluster by name %s", *peName)
-		} else {
-			return "", fmt.Errorf("more than one Prism Element cluster found with name %s", *peName)
+		switch len(foundPEs) {
+		case 1:
+			return &foundPEs[0], nil
+		case 0:
+			return nil, &terminalError{message: fmt.Sprintf("failed to retrieve Prism Element cluster by name %s", *peName)}
+		default:
+			return nil, fmt.Errorf("more than one Prism Element cluster found with name %s", *peName)
 		}
 	}
-	return "", fmt.Errorf("failed to retrieve Prism Element cluster by name or uuid. Verify input parameters")
+	return nil, fmt.Errorf("failed to retrieve Prism Element cluster by name or uuid. Verify input parameters")
+}
+
+// IsPEAvailable returns whether the Prism Element cluster with the given UUID is currently available.
+func IsPEAvailable(ctx context.Context, client *v4Converged.Client, peUUID string) (bool, error) {
+	pe, err := GetPECluster(ctx, client, peUUID)
+	if err != nil {
+		return false, err
+	}
+	if pe.Config == nil || pe.Config.IsAvailable == nil {
+		return false, nil
+	}
+	return *pe.Config.IsAvailable, nil
 }
 
 // GetMibValueOfQuantity returns the given quantity value in Mib
@@ -470,7 +550,7 @@ func GetSubnetUUID(ctx context.Context, client *v4Converged.Client, peUUID strin
 			if converged.IsNotFound(err) {
 				return "", fmt.Errorf("failed to find subnet with UUID %s: %w", *subnetUUID, err)
 			}
-			return "", fmt.Errorf("failed to get subnet with UUID %s: %v", *subnetUUID, err)
+			return "", fmt.Errorf("failed to get subnet with UUID %s: %w", *subnetUUID, err)
 		}
 		foundSubnetUUID = *subnetIntentResponse.ExtId
 	} else { // else search by name
@@ -499,7 +579,7 @@ func GetSubnetUUID(ctx context.Context, client *v4Converged.Client, peUUID strin
 		}
 
 		if len(foundSubnets) == 0 {
-			return "", fmt.Errorf("failed to retrieve subnet by name %s", *subnetName)
+			return "", &terminalError{message: fmt.Sprintf("failed to retrieve subnet by name %s", *subnetName)}
 		} else if len(foundSubnets) > 1 {
 			return "", fmt.Errorf("more than one subnet found with name %s", *subnetName)
 		} else {
@@ -522,7 +602,7 @@ func GetImage(ctx context.Context, client *v4Converged.Client, id infrav1.Nutani
 			if converged.IsNotFound(err) {
 				return nil, fmt.Errorf("failed to find image with UUID %s: %w", *id.UUID, err)
 			}
-			return nil, fmt.Errorf("failed to get image with UUID %s: %v", *id.UUID, err)
+			return nil, fmt.Errorf("failed to get image with UUID %s: %w", *id.UUID, err)
 		}
 		return resp, nil
 	case id.IsName():
@@ -538,7 +618,7 @@ func GetImage(ctx context.Context, client *v4Converged.Client, id infrav1.Nutani
 			}
 		}
 		if len(foundImages) == 0 {
-			return nil, fmt.Errorf("found no image with name %s", *id.Name)
+			return nil, &terminalError{message: fmt.Sprintf("found no image with name %s", *id.Name)}
 		} else if len(foundImages) > 1 {
 			return nil, fmt.Errorf("more than one image found with name %s", *id.Name)
 		} else {
@@ -567,7 +647,7 @@ func GetImageByLookup(
 	params := ImageLookup{*imageLookupBaseOS, *k8sVersion}
 	t, err := template.New("k8sTemplate").Parse(*imageTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse template given %s %v", *imageTemplate, err)
+		return nil, fmt.Errorf("failed to parse template given %s: %w", *imageTemplate, err)
 	}
 	var templateBytes bytes.Buffer
 	err = t.Execute(&templateBytes, params)
@@ -592,7 +672,7 @@ func GetImageByLookup(
 	}
 	sorted := sortImagesByLatestCreationTime(foundImages)
 	if len(sorted) == 0 {
-		return nil, fmt.Errorf("failed to find image with filter %s", templateBytes.String())
+		return nil, &terminalError{message: fmt.Sprintf("failed to find image with filter %s", templateBytes.String())}
 	}
 	return sorted[0], nil
 }
@@ -719,7 +799,7 @@ func GetOrCreateCategories(ctx context.Context, client *v4Converged.Client, cate
 func getCategory(ctx context.Context, client *v4Converged.Client, key, value string) (*prismModels.Category, error) {
 	categories, err := client.Categories.List(ctx, converged.WithFilter(fmt.Sprintf("key eq '%s' and value eq '%s'", key, value)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve category value %s in category %s. error: %v", value, key, err)
+		return nil, fmt.Errorf("failed to retrieve category value %s in category %s. error: %w", value, key, err)
 	}
 	if len(categories) == 0 {
 		return nil, nil
@@ -745,7 +825,7 @@ func deleteCategoryKeyValues(ctx context.Context, client *v4Converged.Client, ca
 		for _, value := range values {
 			prismCategory, err := getCategory(ctx, client, key, value)
 			if err != nil {
-				errorMsg := fmt.Errorf("failed to retrieve category value %s in category %s. error: %v", value, key, err)
+				errorMsg := fmt.Errorf("failed to retrieve category value %s in category %s. error: %w", value, key, err)
 				log.Error(errorMsg, "failed to retrieve category value")
 				return errorMsg
 			}
@@ -756,7 +836,7 @@ func deleteCategoryKeyValues(ctx context.Context, client *v4Converged.Client, ca
 
 			err = client.Categories.Delete(ctx, *prismCategory.ExtId)
 			if err != nil {
-				errorMsg := fmt.Errorf("failed to delete category value with key:value %s:%s. error: %v", key, value, err)
+				errorMsg := fmt.Errorf("failed to delete category value with key:value %s:%s. error: %w", key, value, err)
 				log.Error(errorMsg, "failed to delete category value")
 				// NCN-101935: If the category value still has VMs assigned, do not delete the category key:value
 				// TODO:deepakmntnx Add a check for specific error mentioned in NCN-101935
@@ -797,7 +877,7 @@ func getOrCreateCategory(ctx context.Context, client *v4Converged.Client, catego
 	log.V(1).Info(fmt.Sprintf("Checking existence of category with key %s and value %s", categoryIdentifier.Key, categoryIdentifier.Value))
 	prismCategory, err := getCategory(ctx, client, categoryIdentifier.Key, categoryIdentifier.Value)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to retrieve category with key %s. error: %v", categoryIdentifier.Key, err)
+		errorMsg := fmt.Errorf("failed to retrieve category with key %s. error: %w", categoryIdentifier.Key, err)
 		log.Error(errorMsg, "failed to retrieve category")
 		return nil, errorMsg
 	}
@@ -809,7 +889,7 @@ func getOrCreateCategory(ctx context.Context, client *v4Converged.Client, catego
 			Value:       ptr.To(categoryIdentifier.Value),
 		})
 		if err != nil {
-			errorMsg := fmt.Errorf("failed to create category with key %s and value %s. error: %v", categoryIdentifier.Key, categoryIdentifier.Value, err)
+			errorMsg := fmt.Errorf("failed to create category with key %s and value %s. error: %w", categoryIdentifier.Key, categoryIdentifier.Value, err)
 			log.Error(errorMsg, "failed to create category")
 			return nil, errorMsg
 		}
@@ -831,12 +911,12 @@ func GetPrismReferencesOfCategoryIdentifiers(
 		}
 		prismCategory, err := getCategory(ctx, client, ci.Key, ci.Value)
 		if err != nil {
-			errorMsg := fmt.Errorf("error occurred while to retrieving category value %s in category %s. error: %v", ci.Value, ci.Key, err)
+			errorMsg := fmt.Errorf("error occurred while to retrieving category value %s in category %s. error: %w", ci.Value, ci.Key, err)
 			log.Error(errorMsg, "failed to retrieve category")
 			return nil, errorMsg
 		}
 		if prismCategory == nil || prismCategory.ExtId == nil {
-			errorMsg := fmt.Errorf("category value %s not found in category %s. error", ci.Value, ci.Key)
+			errorMsg := &terminalError{message: fmt.Sprintf("category value %s not found in category %s", ci.Value, ci.Key)}
 			log.Error(errorMsg, "category value not found")
 			return nil, errorMsg
 		}
@@ -866,9 +946,9 @@ func GetProjectUUID(ctx context.Context, client *prismclientv3.Client, projectNa
 		projectIntentResponse, err := client.V3.GetProject(ctx, *projectUUID)
 		if err != nil {
 			if strings.Contains(fmt.Sprint(err), "ENTITY_NOT_FOUND") {
-				return "", fmt.Errorf("failed to find project with UUID %s: %v", *projectUUID, err)
+				return "", &terminalError{message: fmt.Sprintf("failed to find project with UUID %s: %v", *projectUUID, err)}
 			}
-			return "", fmt.Errorf("failed to get project with UUID %s: %v", *projectUUID, err)
+			return "", fmt.Errorf("failed to get project with UUID %s: %w", *projectUUID, err)
 		}
 		foundProjectUUID = *projectIntentResponse.Metadata.UUID
 	} else { // else search by name
@@ -884,7 +964,7 @@ func GetProjectUUID(ctx context.Context, client *prismclientv3.Client, projectNa
 			}
 		}
 		if len(foundProjects) == 0 {
-			return "", fmt.Errorf("failed to retrieve project by name %s", *projectName)
+			return "", &terminalError{message: fmt.Sprintf("failed to retrieve project by name %s", *projectName)}
 		} else if len(foundProjects) > 1 {
 			return "", fmt.Errorf("more than one project found with name %s", *projectName)
 		} else {
@@ -937,7 +1017,7 @@ func GetGPU(ctx context.Context, client *v4Converged.Client, peUUID string, gpu 
 		return nil, err
 	}
 	if len(allUnusedGPUs) == 0 {
-		return nil, fmt.Errorf("no available GPUs found in Prism Element cluster with UUID %s", peUUID)
+		return nil, &terminalError{message: fmt.Sprintf("no available GPUs found in Prism Element cluster with UUID %s", peUUID)}
 	}
 
 	randomIndex := rand.Intn(len(allUnusedGPUs))
@@ -1050,7 +1130,7 @@ func GetStorageContainerInCluster(ctx context.Context, client *v4Converged.Clien
 	}
 
 	if len(storageContainers) == 0 {
-		return nil, fmt.Errorf("found no storage container using filter: %s", filter)
+		return nil, &terminalError{message: fmt.Sprintf("found no storage container using filter: %s", filter)}
 	}
 
 	return &storageContainers[0], nil
@@ -1207,4 +1287,163 @@ func resourceIdsEquals(nris1, nris2 []infrav1.NutanixResourceIdentifier) bool {
 	}
 
 	return true
+}
+
+func isNutanixMetroFailureDomain(fdName string) bool {
+	return strings.HasPrefix(fdName, metroFailureDomainPrefix)
+}
+
+func isNutanixMetroSiteFailureDomain(fdName string) bool {
+	return strings.HasPrefix(fdName, metroSiteFailureDomainPrefix)
+}
+
+func getNutanixFailureDomainObject(ctx context.Context, ctlclient client.Client, objectName, namespace string) (*infrav1.NutanixFailureDomain, error) {
+	fdObj := &infrav1.NutanixFailureDomain{}
+	objKey := client.ObjectKey{Name: objectName, Namespace: namespace}
+	if err := ctlclient.Get(ctx, objKey, fdObj); err != nil {
+		return nil, fmt.Errorf("failed to fetch NutanixFailureDomain object by name %q: %w", objectName, err)
+	}
+	return fdObj, nil
+}
+
+func getNutanixMetroObject(ctx context.Context, ctlclient client.Client, objectName, namespace string) (*infrav1.NutanixMetro, error) {
+	metroObj := &infrav1.NutanixMetro{}
+	objKey := client.ObjectKey{Name: objectName, Namespace: namespace}
+	if err := ctlclient.Get(ctx, objKey, metroObj); err != nil {
+		return nil, fmt.Errorf("failed to fetch NutanixMetro object by name %q: %w", objectName, err)
+	}
+	return metroObj, nil
+}
+
+func getNutanixMetroSiteObject(ctx context.Context, ctlclient client.Client, objectName, namespace string) (*infrav1.NutanixMetroSite, error) {
+	metroSiteObj := &infrav1.NutanixMetroSite{}
+	objKey := client.ObjectKey{Name: objectName, Namespace: namespace}
+	if err := ctlclient.Get(ctx, objKey, metroSiteObj); err != nil {
+		return nil, fmt.Errorf("failed to fetch NutanixMetroSite object by name %q: %w", objectName, err)
+	}
+	return metroSiteObj, nil
+}
+
+// vHADomainName builds the NutanixVirtualHADomain object name for a (cluster, metro) pair. The name
+// is scoped to the cluster so that distinct clusters referencing the same NutanixMetro do not collide
+// on a single object.
+func vHADomainName(clusterName, metroName string) string {
+	return fmt.Sprintf("%s-%s", clusterName, metroName)
+}
+
+func getNutanixVHADomainObject(ctx context.Context, ctlclient client.Client, objectName, namespace string) (*infrav1.NutanixVirtualHADomain, error) {
+	vhaDomain := &infrav1.NutanixVirtualHADomain{}
+	objKey := client.ObjectKey{Name: objectName, Namespace: namespace}
+	if err := ctlclient.Get(ctx, objKey, vhaDomain); err != nil {
+		return nil, fmt.Errorf("failed to fetch NutanixVirtualHADomain object by name %q: %w", objectName, err)
+	}
+	return vhaDomain, nil
+}
+
+// getOwnedVHADomains returns the NutanixVirtualHADomain objects owned by the given NutanixCluster
+// object in the local namespace.
+func getOwnedVHADomains(ctx context.Context, ctlclient client.Client, ncl *infrav1.NutanixCluster) ([]*infrav1.NutanixVirtualHADomain, error) {
+	// Get all the NutanixVirtualHADomain CRs in the local namespace
+	vHADomainsList := &infrav1.NutanixVirtualHADomainList{}
+	if err := ctlclient.List(ctx, vHADomainsList, client.InNamespace(ncl.Namespace)); err != nil {
+		return nil, err
+	}
+
+	vHADomains := []*infrav1.NutanixVirtualHADomain{}
+	for i := range vHADomainsList.Items {
+		vhaDomain := &vHADomainsList.Items[i]
+		for _, ownerRef := range vhaDomain.GetOwnerReferences() {
+			if ownerRef.Kind != infrav1.NutanixClusterKind || ownerRef.Name != ncl.Name {
+				continue
+			}
+			gv, err := schema.ParseGroupVersion(ownerRef.APIVersion)
+			if err != nil {
+				continue
+			}
+			if gv.Group == infrav1.GroupVersion.Group {
+				vHADomains = append(vHADomains, vhaDomain)
+				break
+			}
+		}
+	}
+
+	return vHADomains, nil
+}
+
+// getVHADomainCategory returns the NutanixVirtualHADomain category that should be applied to a
+// Metro/MetroSite machine's VM so that it is placed on the preferred failure domain's Prism Element.
+func getVHADomainCategory(mctx *nctx.MachineContext, ctlclient client.Client) (*infrav1.NutanixCategoryIdentifier, error) {
+	fdName := mctx.Machine.Spec.FailureDomain
+	if !isNutanixMetroFailureDomain(fdName) && !isNutanixMetroSiteFailureDomain(fdName) {
+		return nil, fmt.Errorf("the Machine's spec.failureDomain is not configured with NutanixMetro/ or NutanixMetroSite/ prefix: %s", fdName)
+	}
+
+	metroName := ""
+	namespace := mctx.Machine.Namespace
+	if isNutanixMetroSiteFailureDomain(fdName) {
+		metrositeObj, err := getNutanixMetroSiteObject(mctx.Context, ctlclient, fdName[len(metroSiteFailureDomainPrefix):], namespace)
+		if err != nil {
+			return nil, err
+		}
+		metroName = metrositeObj.Spec.MetroRef.Name
+	} else if isNutanixMetroFailureDomain(fdName) {
+		metroName = fdName[len(metroFailureDomainPrefix):]
+	}
+
+	if mctx.Datastore == nil {
+		return nil, fmt.Errorf("failed to get %s from reconciling context", nctx.MetroPreferredFailureDomainName)
+	}
+	preferredFailureDomain := mctx.Datastore[nctx.MetroPreferredFailureDomainName]
+	if preferredFailureDomain == nil {
+		return nil, fmt.Errorf("failed to get %s from reconciling context", nctx.MetroPreferredFailureDomainName)
+	}
+
+	// Fetch the NutanixCluster owned vHADomain CRs
+	vHADomains, err := getOwnedVHADomains(mctx.Context, ctlclient, mctx.NutanixCluster)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, vhaDomain := range vHADomains {
+		if vhaDomain.Spec.MetroRef.Name != metroName {
+			continue
+		}
+		if !vhaDomain.Status.Ready {
+			return nil, fmt.Errorf("the vHADomain %s is not ready", vhaDomain.Name)
+		}
+
+		// Find the category-recovery-plan mapping for the preferred failure domain. Only the
+		// cluster-scope movement group is supported for now; nodepool-scope movement groups are not
+		// yet handled, so we restrict the lookup to the well-known cluster-scope group.
+		mgIdx := -1
+		for i, mg := range vhaDomain.Spec.MovementGroups {
+			if mg.Name == clusterScopeMovementGroupName {
+				mgIdx = i
+				break
+			}
+		}
+		if mgIdx < 0 {
+			return nil, fmt.Errorf("vHADomain %s has no %q (cluster-scope) movement group", vhaDomain.Name, clusterScopeMovementGroupName)
+		}
+		movementGroup := vhaDomain.Spec.MovementGroups[mgIdx]
+
+		for i := range movementGroup.CategoryRecoveryPlans {
+			crp := movementGroup.CategoryRecoveryPlans[i]
+			if crp.FailureDomainRef.Name != *preferredFailureDomain {
+				continue
+			}
+
+			preferredCategory := crp.Category
+			// validate the preferredCategory exists in PC
+			if _, err := getCategory(mctx.Context, mctx.ConvergedClient, preferredCategory.Key, preferredCategory.Value); err != nil {
+				return nil, fmt.Errorf("HADomain: %s, NutanixMetro: %s, failed to fetch Category (key:%s, value:%s) from PC: %w", vhaDomain.Name, metroName, preferredCategory.Key, preferredCategory.Value, err)
+			}
+
+			return &preferredCategory, nil
+		}
+
+		return nil, fmt.Errorf("vHADomain %s has no category mapping for the preferred failureDomain %s", vhaDomain.Name, *preferredFailureDomain)
+	}
+
+	return nil, fmt.Errorf("not found vHADomain category for NutanixMachine")
 }

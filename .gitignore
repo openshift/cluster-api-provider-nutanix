@@ -114,3 +114,4 @@ cluster.yaml
 /.devbox/
 mycluster-without-topology.yaml
 yamllint-checkstyle.xml
+.tool-versions

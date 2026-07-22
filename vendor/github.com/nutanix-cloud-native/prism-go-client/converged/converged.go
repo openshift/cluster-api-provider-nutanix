@@ -33,23 +33,36 @@ type Client[
 	VmAttachment,
 	DomainManagerEntity,
 	User,
+	Role,
+	AuthorizationPolicy,
+	AuthorizationPolicyProjection,
+	Operation,
 	Template,
 	Ova,
-	OvaFile any] struct {
-	AntiAffinityPolicies AntiAffinityPolicies[AntiAffinityPolicy]
-	Clusters             Clusters[Cluster, VirtualGpuProfile, PhysicalGpuProfile, Host]
-	Categories           Categories[Category]
-	Images               Images[Image, ImageFile]
-	StorageContainers    StorageContainers[StorageContainer]
-	Subnets              Subnets[Subnet, SubnetTaskReference]
-	VMs                  VMs[VM]
-	Tasks                Tasks[Task, AppMessage]
-	VolumeGroups         VolumeGroups[VolumeGroup, VmAttachment]
-	DomainManager        DomainManager[DomainManagerEntity]
-	Users                Users[User]
-	Templates            Templates[Template]
-	Ovas                 Ovas[Ova, OvaFile]
-	// Additional service interfaces can be added here as needed.
+	OvaFile,
+	ProtectionPolicy,
+	RecoveryPlan,
+	Disk,
+	Alert any] struct {
+	AntiAffinityPolicies  AntiAffinityPolicies[AntiAffinityPolicy]
+	Clusters              Clusters[Cluster, VirtualGpuProfile, PhysicalGpuProfile, Host]
+	Categories            Categories[Category]
+	Images                Images[Image, ImageFile]
+	StorageContainers     StorageContainers[StorageContainer]
+	Subnets               Subnets[Subnet, SubnetTaskReference]
+	VMs                   VMs[VM]
+	Tasks                 Tasks[Task, AppMessage]
+	VolumeGroups          VolumeGroups[VolumeGroup, VmAttachment]
+	DomainManager         DomainManager[DomainManagerEntity]
+	Users                 Users[User]
+	Roles                 Roles[Role]
+	AuthorizationPolicies AuthorizationPolicies[AuthorizationPolicy, AuthorizationPolicyProjection]
+	Operations            Operations[Operation]
+	Templates             Templates[Template]
+	Ovas                  Ovas[Ova, OvaFile]
+	DataPolicies          DataPolicies[ProtectionPolicy, RecoveryPlan]
+	Disks                Disks[Disk]
+	Alerts               Alerts[Alert]
 }
 
 // Getter is the interface for Get operations.

@@ -379,6 +379,7 @@ func TestNutanixMachineReconciler_SetupWithManager(t *testing.T) {
 	mgr := mockctlclient.NewMockManager(mockCtrl)
 	mgr.EXPECT().GetCache().Return(cache).AnyTimes()
 	mgr.EXPECT().GetScheme().Return(scheme).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(nil).AnyTimes()
 	mgr.EXPECT().GetControllerOptions().Return(config.Controller{MaxConcurrentReconciles: 1}).AnyTimes()
 	mgr.EXPECT().GetLogger().Return(log).AnyTimes()
 	mgr.EXPECT().Add(gomock.Any()).Return(nil).AnyTimes()
@@ -392,6 +393,7 @@ func TestNutanixMachineReconciler_SetupWithManager(t *testing.T) {
 	mockClient := mockctlclient.NewMockClient(mockCtrl)
 	mockClient.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().RESTMapper().Return(restMapper).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(mockClient).AnyTimes()
 
 	reconciler := &NutanixMachineReconciler{
 		Client: mockClient,
@@ -423,6 +425,7 @@ func TestNutanixMachineReconciler_SetupWithManager_BuildError(t *testing.T) {
 	mgr := mockctlclient.NewMockManager(mockCtrl)
 	mgr.EXPECT().GetCache().Return(cache).AnyTimes()
 	mgr.EXPECT().GetScheme().Return(scheme).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(nil).AnyTimes()
 	mgr.EXPECT().GetControllerOptions().Return(config.Controller{MaxConcurrentReconciles: 1}).AnyTimes()
 	mgr.EXPECT().GetLogger().Return(log).AnyTimes()
 	mgr.EXPECT().Add(gomock.Any()).Return(errors.New("error")).AnyTimes()
@@ -436,6 +439,7 @@ func TestNutanixMachineReconciler_SetupWithManager_BuildError(t *testing.T) {
 	mockClient := mockctlclient.NewMockClient(mockCtrl)
 	mockClient.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().RESTMapper().Return(restMapper).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(mockClient).AnyTimes()
 
 	reconciler := &NutanixMachineReconciler{
 		Client: mockClient,
@@ -466,6 +470,7 @@ func TestNutanixMachineReconciler_SetupWithManager_ClusterToTypedObjectsMapperEr
 	mgr := mockctlclient.NewMockManager(mockCtrl)
 	mgr.EXPECT().GetCache().Return(cache).AnyTimes()
 	mgr.EXPECT().GetScheme().Return(scheme).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(nil).AnyTimes()
 	mgr.EXPECT().GetControllerOptions().Return(config.Controller{MaxConcurrentReconciles: 1}).AnyTimes()
 	mgr.EXPECT().GetLogger().Return(log).AnyTimes()
 	mgr.EXPECT().Add(gomock.Any()).Return(nil).AnyTimes()
@@ -479,6 +484,7 @@ func TestNutanixMachineReconciler_SetupWithManager_ClusterToTypedObjectsMapperEr
 	mockClient := mockctlclient.NewMockClient(mockCtrl)
 	mockClient.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().RESTMapper().Return(restMapper).AnyTimes()
+	mgr.EXPECT().GetAPIReader().Return(mockClient).AnyTimes()
 
 	reconciler := &NutanixMachineReconciler{
 		Client: mockClient,
@@ -777,6 +783,49 @@ func TestNutanixMachineValidateDataDisks(t *testing.T) {
 			errCheck: func(g *WithT, err error) {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err.Error()).To(ContainSubstring("invalid device index -1 for data disk"))
+			},
+		},
+		{
+			name: "dataDiskErrorDuplicateDeviceIndex",
+			dataDisks: func() []infrav1.NutanixMachineVMDisk {
+				return []infrav1.NutanixMachineVMDisk{
+					{
+						DiskSize: resource.MustParse("20Gi"),
+						DeviceProperties: &infrav1.NutanixMachineVMDiskDeviceProperties{
+							DeviceType:  infrav1.NutanixMachineDiskDeviceTypeDisk,
+							AdapterType: infrav1.NutanixMachineDiskAdapterTypeSCSI,
+							DeviceIndex: 10,
+						},
+						StorageConfig: &infrav1.NutanixMachineVMStorageConfig{
+							DiskMode: infrav1.NutanixMachineDiskModeStandard,
+							StorageContainer: &infrav1.NutanixResourceIdentifier{
+								UUID: ptr.To("06b1ce03-f384-4488-9ba1-ae17ebcf1f91"),
+								Type: infrav1.NutanixIdentifierUUID,
+							},
+						},
+					},
+					{
+						DiskSize: resource.MustParse("20Gi"),
+						DeviceProperties: &infrav1.NutanixMachineVMDiskDeviceProperties{
+							DeviceType:  infrav1.NutanixMachineDiskDeviceTypeDisk,
+							AdapterType: infrav1.NutanixMachineDiskAdapterTypeSCSI,
+							DeviceIndex: 10,
+						},
+						StorageConfig: &infrav1.NutanixMachineVMStorageConfig{
+							DiskMode: infrav1.NutanixMachineDiskModeStandard,
+							StorageContainer: &infrav1.NutanixResourceIdentifier{
+								UUID: ptr.To("06b1ce03-f384-4488-9ba1-ae17ebcf1f91"),
+								Type: infrav1.NutanixIdentifierUUID,
+							},
+						},
+					},
+				}
+			},
+			description: "Verify NutanixMachine with duplicate data disk device index error",
+			stepDesc:    "should error on validation due to duplicate device index",
+			errCheck: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("index '10' is already in use"))
 			},
 		},
 	}
@@ -2652,10 +2701,11 @@ func TestNutanixMachineReconciler_getOrCreateVM(t *testing.T) {
 		// Create mock clients
 		mockConvergedClient := NewMockConvergedClient(ctrl)
 
-		// Mock FindVM to return existing VM
+		// Mock FindVM to return existing VM (already powered on)
 		expectedVm := vmmModels.NewVm()
 		expectedVm.Name = ptr.To(vmName)
 		expectedVm.ExtId = ptr.To(vmUUID)
+		expectedVm.PowerState = vmmModels.POWERSTATE_ON.Ref()
 		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(expectedVm, nil)
 
 		// Create machine context
@@ -2713,10 +2763,11 @@ func TestNutanixMachineReconciler_getOrCreateVM(t *testing.T) {
 		// Create mock clients
 		mockConvergedClient := NewMockConvergedClient(ctrl)
 
-		// Mock FindVMByName
+		// Mock FindVMByName (already powered on)
 		expectedVM := vmmModels.NewVm()
 		expectedVM.Name = ptr.To(vmName)
 		expectedVM.ExtId = ptr.To(vmUUID)
+		expectedVM.PowerState = vmmModels.POWERSTATE_ON.Ref()
 		mockConvergedClient.MockVMs.EXPECT().List(ctx, FilterMatcher{ContainsExtId: vmName}).Return([]vmmModels.Vm{*expectedVM}, nil)
 		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(expectedVM, nil)
 
@@ -2739,6 +2790,67 @@ func TestNutanixMachineReconciler_getOrCreateVM(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, vm)
 		assert.Equal(t, vmName, *vm.Name)
+	})
+
+	t.Run("should return existing VM even when it is powered off", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		vmName := "test-vm"
+		vmUUID := "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+
+		ntnxMachine := &infrav1.NutanixMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-machine",
+				Namespace: "default",
+			},
+			Spec: infrav1.NutanixMachineSpec{
+				ProviderID: fmt.Sprintf("nutanix://%s", vmUUID),
+			},
+			Status: infrav1.NutanixMachineStatus{
+				VmUUID: vmUUID,
+			},
+		}
+
+		machine := &capiv1beta2.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: vmName,
+			},
+		}
+
+		ntnxCluster := &infrav1.NutanixCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-cluster",
+				Namespace: "default",
+			},
+		}
+
+		mockConvergedClient := NewMockConvergedClient(ctrl)
+
+		// Mock FindVM to return existing VM that is OFF
+		existingVm := vmmModels.NewVm()
+		existingVm.Name = ptr.To(vmName)
+		existingVm.ExtId = ptr.To(vmUUID)
+		existingVm.PowerState = vmmModels.POWERSTATE_OFF.Ref()
+		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(existingVm, nil)
+
+		rctx := &nctx.MachineContext{
+			Context:         ctx,
+			Machine:         machine,
+			NutanixMachine:  ntnxMachine,
+			NutanixCluster:  ntnxCluster,
+			ConvergedClient: mockConvergedClient.Client,
+		}
+
+		reconciler := &NutanixMachineReconciler{}
+		vm, err := reconciler.getOrCreateVM(rctx)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, vm)
+		assert.Equal(t, vmName, *vm.Name)
+		assert.Equal(t, vmUUID, *vm.ExtId)
+		assert.Equal(t, vmmModels.POWERSTATE_OFF, *vm.PowerState)
 	})
 
 	t.Run("should return error when FindVM fails", func(t *testing.T) {
@@ -2933,24 +3045,6 @@ func TestNutanixMachineReconciler_getOrCreateVM(t *testing.T) {
 		createdVM.ExtId = ptr.To(vmUUID)
 		mockConvergedClient.MockVMs.EXPECT().Create(ctx, gomock.Any()).Return(createdVM, nil)
 
-		// Mock AddVmCustomAttributes for setting custom attributes after providerID is assigned
-		updatedVM := vmmModels.NewVm()
-		updatedVM.Name = ptr.To(vmName)
-		updatedVM.ExtId = ptr.To(vmUUID)
-		mockConvergedClient.MockVMs.EXPECT().AddVmCustomAttributes(ctx, vmUUID, gomock.Any()).Return(updatedVM, nil)
-
-		// Mock PowerOnVM
-		mockOperation := mockconverged.NewMockOperation[vmmModels.Vm](ctrl)
-		mockConvergedClient.MockVMs.EXPECT().PowerOnVM(vmUUID).Return(mockOperation, nil)
-		mockOperation.EXPECT().Wait(gomock.Any()).Return(nil, nil)
-
-		// Mock final FindVMByUUID call
-		finalVM := vmmModels.NewVm()
-		finalVM.Name = ptr.To(vmName)
-		finalVM.ExtId = ptr.To(vmUUID)
-		finalVM.PowerState = vmmModels.POWERSTATE_ON.Ref()
-		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(finalVM, nil)
-
 		// Create machine context
 		rctx := &nctx.MachineContext{
 			Context:         ctx,
@@ -3007,6 +3101,334 @@ func TestNutanixMachineReconciler_getOrCreateVM(t *testing.T) {
 		assert.Equal(t, vmUUID, ntnxMachine.Status.VmUUID)
 		// The providerID should be set using the actual VM UUID
 		assert.Equal(t, fmt.Sprintf("nutanix://%s", vmUUID), ntnxMachine.Spec.ProviderID)
+	})
+
+	t.Run("should set failure status when category lookup returns not found", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		vmName := "test-vm"
+		peUUID := "00056024-f4f2-a6f6-0000-00000000e7f4"
+		subnetUUID := "b8c6d9f0-4c5e-4c5e-8c5e-4c5e4c5e4c5e"
+		imageUUID := "c5e4c5e4-c5e4-c5e4-c5e4-c5e4c5e4c5e4"
+		clusterName := "test-cluster"
+		projectName := "test-project"
+
+		ntnxMachine := &infrav1.NutanixMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-machine",
+				Namespace: "default",
+			},
+			Spec: infrav1.NutanixMachineSpec{
+				VCPUSockets:    2,
+				VCPUsPerSocket: 1,
+				MemorySize:     resource.MustParse("4Gi"),
+				SystemDiskSize: resource.MustParse("40Gi"),
+				BootType:       infrav1.NutanixBootTypeLegacy,
+				Project: &infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierName,
+					Name: &projectName,
+				},
+				Image: &infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierUUID,
+					UUID: &imageUUID,
+				},
+				Cluster: infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierUUID,
+					UUID: &peUUID,
+				},
+				Subnets: []infrav1.NutanixResourceIdentifier{
+					{
+						Type: infrav1.NutanixIdentifierUUID,
+						UUID: &subnetUUID,
+					},
+				},
+				BootstrapRef: &corev1.ObjectReference{
+					Kind:      infrav1.NutanixMachineBootstrapRefKindSecret,
+					Name:      "bootstrap-secret",
+					Namespace: "default",
+				},
+			},
+		}
+
+		machine := &capiv1beta2.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: vmName,
+			},
+			Spec: capiv1beta2.MachineSpec{
+				Version: "v1.28.0",
+			},
+		}
+
+		cluster := &capiv1beta2.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName,
+				Namespace: "default",
+			},
+		}
+
+		ntnxCluster := &infrav1.NutanixCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName,
+				Namespace: "default",
+			},
+		}
+
+		mockConvergedClient := NewMockConvergedClient(ctrl)
+
+		// VM not found, proceed to create flow.
+		mockConvergedClient.MockVMs.EXPECT().List(ctx, gomock.Any()).Return([]vmmModels.Vm{}, nil)
+		mockConvergedClient.MockClusters.EXPECT().Get(ctx, peUUID).Return(&clustermgmtconfig.Cluster{
+			ExtId: &peUUID,
+		}, nil)
+		mockConvergedClient.MockSubnets.EXPECT().Get(ctx, subnetUUID).Return(&subnetModels.Subnet{
+			ExtId: &subnetUUID,
+		}, nil)
+		mockConvergedClient.MockCategories.EXPECT().List(ctx, gomock.Any()).Return(nil,
+			&converged.APIError{Kind: converged.ErrNotFound, Message: "category not found"},
+		).AnyTimes()
+
+		rctx := &nctx.MachineContext{
+			Context:         ctx,
+			Cluster:         cluster,
+			Machine:         machine,
+			NutanixMachine:  ntnxMachine,
+			NutanixCluster:  ntnxCluster,
+			ConvergedClient: mockConvergedClient.Client,
+		}
+
+		reconciler := &NutanixMachineReconciler{}
+		vm, err := reconciler.getOrCreateVM(rctx)
+
+		require.Error(t, err)
+		assert.Nil(t, vm)
+		require.NotNil(t, ntnxMachine.Status.FailureReason)
+		assert.Equal(t, createErrorFailureReason, *ntnxMachine.Status.FailureReason)
+		require.NotNil(t, ntnxMachine.Status.FailureMessage)
+		assert.Contains(t, *ntnxMachine.Status.FailureMessage, "category spec")
+	})
+
+	t.Run("should not set failure status when category lookup returns internal error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		vmName := "test-vm"
+		peUUID := "00056024-f4f2-a6f6-0000-00000000e7f4"
+		subnetUUID := "b8c6d9f0-4c5e-4c5e-8c5e-4c5e4c5e4c5e"
+		imageUUID := "c5e4c5e4-c5e4-c5e4-c5e4-c5e4c5e4c5e4"
+		clusterName := "test-cluster"
+		projectName := "test-project"
+
+		ntnxMachine := &infrav1.NutanixMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-machine",
+				Namespace: "default",
+			},
+			Spec: infrav1.NutanixMachineSpec{
+				VCPUSockets:    2,
+				VCPUsPerSocket: 1,
+				MemorySize:     resource.MustParse("4Gi"),
+				SystemDiskSize: resource.MustParse("40Gi"),
+				BootType:       infrav1.NutanixBootTypeLegacy,
+				Project: &infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierName,
+					Name: &projectName,
+				},
+				Image: &infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierUUID,
+					UUID: &imageUUID,
+				},
+				Cluster: infrav1.NutanixResourceIdentifier{
+					Type: infrav1.NutanixIdentifierUUID,
+					UUID: &peUUID,
+				},
+				Subnets: []infrav1.NutanixResourceIdentifier{
+					{
+						Type: infrav1.NutanixIdentifierUUID,
+						UUID: &subnetUUID,
+					},
+				},
+				BootstrapRef: &corev1.ObjectReference{
+					Kind:      infrav1.NutanixMachineBootstrapRefKindSecret,
+					Name:      "bootstrap-secret",
+					Namespace: "default",
+				},
+			},
+		}
+
+		machine := &capiv1beta2.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: vmName,
+			},
+			Spec: capiv1beta2.MachineSpec{
+				Version: "v1.28.0",
+			},
+		}
+
+		cluster := &capiv1beta2.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName,
+				Namespace: "default",
+			},
+		}
+
+		ntnxCluster := &infrav1.NutanixCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName,
+				Namespace: "default",
+			},
+		}
+
+		mockConvergedClient := NewMockConvergedClient(ctrl)
+
+		// VM not found, proceed to create flow.
+		mockConvergedClient.MockVMs.EXPECT().List(ctx, gomock.Any()).Return([]vmmModels.Vm{}, nil)
+		mockConvergedClient.MockClusters.EXPECT().Get(ctx, peUUID).Return(&clustermgmtconfig.Cluster{
+			ExtId: &peUUID,
+		}, nil)
+		mockConvergedClient.MockSubnets.EXPECT().Get(ctx, subnetUUID).Return(&subnetModels.Subnet{
+			ExtId: &subnetUUID,
+		}, nil)
+		mockConvergedClient.MockCategories.EXPECT().List(ctx, gomock.Any()).Return(nil,
+			&converged.APIError{Kind: converged.ErrInternal, Message: "pc internal error"},
+		).AnyTimes()
+
+		rctx := &nctx.MachineContext{
+			Context:         ctx,
+			Cluster:         cluster,
+			Machine:         machine,
+			NutanixMachine:  ntnxMachine,
+			NutanixCluster:  ntnxCluster,
+			ConvergedClient: mockConvergedClient.Client,
+		}
+
+		reconciler := &NutanixMachineReconciler{}
+		vm, err := reconciler.getOrCreateVM(rctx)
+
+		require.Error(t, err)
+		assert.Nil(t, vm)
+		assert.Nil(t, ntnxMachine.Status.FailureReason)
+		assert.Nil(t, ntnxMachine.Status.FailureMessage)
+	})
+}
+
+func TestNutanixMachineReconciler_addCustomAttributes(t *testing.T) {
+	const (
+		vmName = "test-vm"
+		vmUUID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	)
+
+	newVM := func(customAttrs []string) *vmmModels.Vm {
+		vm := vmmModels.NewVm()
+		vm.Name = ptr.To(vmName)
+		vm.ExtId = ptr.To(vmUUID)
+		vm.CustomAttributes = customAttrs
+		return vm
+	}
+
+	newMachineContext := func(ctrl *gomock.Controller) (*nctx.MachineContext, *MockConvergedClientWrapper) {
+		mockConvergedClient := NewMockConvergedClient(ctrl)
+		ntnxMachine := &infrav1.NutanixMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-machine",
+				Namespace: "default",
+			},
+		}
+		return &nctx.MachineContext{
+			Context:         context.Background(),
+			NutanixMachine:  ntnxMachine,
+			ConvergedClient: mockConvergedClient.Client,
+		}, mockConvergedClient
+	}
+
+	t.Run("should skip API call when custom attribute already present", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rctx, _ := newMachineContext(ctrl)
+		vm := newVM([]string{"providerid:" + vmUUID})
+
+		reconciler := &NutanixMachineReconciler{}
+		err := reconciler.addCustomAttributes(rctx, vm)
+		assert.NoError(t, err)
+	})
+
+	t.Run("should call API when custom attribute is missing", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rctx, mockClient := newMachineContext(ctrl)
+		vm := newVM(nil)
+
+		expectedAttr := []string{"providerid:" + vmUUID}
+		updatedVM := newVM(expectedAttr)
+		mockClient.MockVMs.EXPECT().
+			AddVmCustomAttributes(rctx.Context, vmUUID, expectedAttr).
+			Return(updatedVM, nil)
+
+		reconciler := &NutanixMachineReconciler{}
+		err := reconciler.addCustomAttributes(rctx, vm)
+		assert.NoError(t, err)
+	})
+
+	t.Run("should call API when different custom attributes exist", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rctx, mockClient := newMachineContext(ctrl)
+		vm := newVM([]string{"other:attribute"})
+
+		expectedAttr := []string{"providerid:" + vmUUID}
+		updatedVM := newVM(append([]string{"other:attribute"}, expectedAttr...))
+		mockClient.MockVMs.EXPECT().
+			AddVmCustomAttributes(rctx.Context, vmUUID, expectedAttr).
+			Return(updatedVM, nil)
+
+		reconciler := &NutanixMachineReconciler{}
+		err := reconciler.addCustomAttributes(rctx, vm)
+		assert.NoError(t, err)
+	})
+
+	t.Run("should return error on non-retryable API failure and set failure status", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rctx, mockClient := newMachineContext(ctrl)
+		vm := newVM(nil)
+
+		apiErr := &converged.APIError{Message: "not found"}
+		mockClient.MockVMs.EXPECT().
+			AddVmCustomAttributes(rctx.Context, vmUUID, gomock.Any()).
+			Return(nil, apiErr)
+
+		reconciler := &NutanixMachineReconciler{}
+		err := reconciler.addCustomAttributes(rctx, vm)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update custom attributes")
+		assert.NotNil(t, rctx.NutanixMachine.Status.FailureReason)
+		assert.NotNil(t, rctx.NutanixMachine.Status.FailureMessage)
+	})
+
+	t.Run("should return error on retryable API failure without setting failure status", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rctx, mockClient := newMachineContext(ctrl)
+		vm := newVM(nil)
+
+		networkErr := fmt.Errorf("connection timeout")
+		mockClient.MockVMs.EXPECT().
+			AddVmCustomAttributes(rctx.Context, vmUUID, gomock.Any()).
+			Return(nil, networkErr)
+
+		reconciler := &NutanixMachineReconciler{}
+		err := reconciler.addCustomAttributes(rctx, vm)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update custom attributes")
+		assert.Nil(t, rctx.NutanixMachine.Status.FailureReason)
+		assert.Nil(t, rctx.NutanixMachine.Status.FailureMessage)
 	})
 }
 
@@ -3300,10 +3722,11 @@ func TestNutanixMachineReconciler_VMUUIDPrioritization(t *testing.T) {
 		// Create mock clients
 		mockConvergedClient := NewMockConvergedClient(ctrl)
 
-		// Mock FindVM to return VM matching systemUUID
+		// Mock FindVM to return VM matching systemUUID (already powered on)
 		expectedVm := vmmModels.NewVm()
 		expectedVm.Name = ptr.To(vmName)
 		expectedVm.ExtId = ptr.To(systemUUID)
+		expectedVm.PowerState = vmmModels.POWERSTATE_ON.Ref()
 		// Should get VM by systemUUID, NOT VmUUID
 		mockConvergedClient.MockVMs.EXPECT().Get(ctx, systemUUID).Return(expectedVm, nil)
 
@@ -3368,10 +3791,11 @@ func TestNutanixMachineReconciler_VMUUIDPrioritization(t *testing.T) {
 		// Create mock clients
 		mockConvergedClient := NewMockConvergedClient(ctrl)
 
-		// Mock FindVM to return VM matching VmUUID
+		// Mock FindVM to return VM matching VmUUID (already powered on)
 		expectedVm := vmmModels.NewVm()
 		expectedVm.Name = ptr.To(vmName)
 		expectedVm.ExtId = ptr.To(vmUUID)
+		expectedVm.PowerState = vmmModels.POWERSTATE_ON.Ref()
 		// Should get VM by VmUUID since NodeInfo is nil
 		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(expectedVm, nil)
 
@@ -3438,10 +3862,11 @@ func TestNutanixMachineReconciler_VMUUIDPrioritization(t *testing.T) {
 		// Create mock clients
 		mockConvergedClient := NewMockConvergedClient(ctrl)
 
-		// Mock FindVM to return VM matching VmUUID
+		// Mock FindVM to return VM matching VmUUID (already powered on)
 		expectedVm := vmmModels.NewVm()
 		expectedVm.Name = ptr.To(vmName)
 		expectedVm.ExtId = ptr.To(vmUUID)
+		expectedVm.PowerState = vmmModels.POWERSTATE_ON.Ref()
 		// Should get VM by VmUUID since SystemUUID is empty
 		mockConvergedClient.MockVMs.EXPECT().Get(ctx, vmUUID).Return(expectedVm, nil)
 

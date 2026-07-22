@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,13 +29,17 @@ import (
 	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
 	mockconverged "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/converged"
 	mockk8sclient "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/k8sclient"
+	mocknutanixv3 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/mocks/nutanix"
 	nutanixclient "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/client"
 	converged "github.com/nutanix-cloud-native/prism-go-client/converged"
 	v4Converged "github.com/nutanix-cloud-native/prism-go-client/converged/v4"
 	credentialtypes "github.com/nutanix-cloud-native/prism-go-client/environment/credentials"
 	prismclientv3 "github.com/nutanix-cloud-native/prism-go-client/v3"
 	clusterModels "github.com/nutanix/ntnx-api-golang-clients/clustermgmt-go-client/v4/models/clustermgmt/v4/config"
+	dataPoliciesModels "github.com/nutanix/ntnx-api-golang-clients/datapolicies-go-client/v4/models/datapolicies/v4/config"
 	iamModels "github.com/nutanix/ntnx-api-golang-clients/iam-go-client/v4/models/iam/v4/authn"
+	authzModels "github.com/nutanix/ntnx-api-golang-clients/iam-go-client/v4/models/iam/v4/authz"
+	alertModels "github.com/nutanix/ntnx-api-golang-clients/monitoring-go-client/v4/models/monitoring/v4/serviceability"
 	subnetModels "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/networking/v4/config"
 	prismNetworkingModels "github.com/nutanix/ntnx-api-golang-clients/networking-go-client/v4/models/prism/v4/config"
 	prismModels "github.com/nutanix/ntnx-api-golang-clients/prism-go-client/v4/models/prism/v4/config"
@@ -56,6 +61,56 @@ import (
 	capiv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 )
+
+func Test_isRetryableAPIError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "not found is not retryable",
+			err:      &converged.APIError{Kind: converged.ErrNotFound, Message: "not found"},
+			expected: false,
+		},
+		{
+			name:     "rate limit is retryable",
+			err:      &converged.APIError{Kind: converged.ErrRateLimit, Message: "rate limited"},
+			expected: true,
+		},
+		{
+			name:     "internal is retryable",
+			err:      &converged.APIError{Kind: converged.ErrInternal, Message: "internal error"},
+			expected: true,
+		},
+		{
+			name:     "unknown errors default to retryable",
+			err:      errors.New("timeout awaiting headers"),
+			expected: true,
+		},
+		{
+			name:     "terminal error is not retryable",
+			err:      &terminalError{message: "resource not found"},
+			expected: false,
+		},
+		{
+			name:     "unclassified APIError (Kind nil) is not retryable",
+			err:      &converged.APIError{Kind: nil, Cause: errors.New("400 Bad Request")},
+			expected: false,
+		},
+		{
+			name:     "wrapped unclassified APIError is not retryable",
+			err:      fmt.Errorf("failed to create VM: %w", &converged.APIError{Kind: nil, Cause: errors.New("validation error")}),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isRetryableAPIError(tt.err))
+		})
+	}
+}
 
 func TestControllerHelpers(t *testing.T) {
 	g := NewWithT(t)
@@ -846,7 +901,7 @@ func TestGetPEUUID(t *testing.T) {
 				convergedClient.MockClusters.EXPECT().Get(gomock.Any(), "found-pe-uuid").Return(
 					&clusterModels.Cluster{
 						ExtId: ptr.To("found-pe-uuid"),
-						Name: ptr.To("my-cluster"),
+						Name:  ptr.To("my-cluster"),
 					}, nil)
 				return convergedClient.Client
 			},
@@ -929,7 +984,7 @@ func TestGetSubnetUUID(t *testing.T) {
 				convergedClient.MockSubnets.EXPECT().Get(gomock.Any(), "found-subnet-uuid").Return(
 					&subnetModels.Subnet{
 						ExtId: ptr.To("found-subnet-uuid"),
-						Name: ptr.To("my-subnet"),
+						Name:  ptr.To("my-subnet"),
 					}, nil)
 				return convergedClient.Client
 			},
@@ -959,9 +1014,9 @@ func TestGetSubnetUUID(t *testing.T) {
 				convergedClient.MockSubnets.EXPECT().List(gomock.Any(), gomock.Any()).Return(
 					[]subnetModels.Subnet{
 						{
-							ExtId:       ptr.To("overlay-subnet-uuid"),
-							Name:        ptr.To("my-overlay"),
-							SubnetType:  &subnetType,
+							ExtId:      ptr.To("overlay-subnet-uuid"),
+							Name:       ptr.To("my-overlay"),
+							SubnetType: &subnetType,
 						},
 					}, nil)
 				return convergedClient.Client
@@ -980,10 +1035,10 @@ func TestGetSubnetUUID(t *testing.T) {
 				convergedClient.MockSubnets.EXPECT().List(gomock.Any(), gomock.Any()).Return(
 					[]subnetModels.Subnet{
 						{
-							ExtId:             ptr.To("vlan-subnet-uuid"),
-							Name:              ptr.To("my-vlan"),
-							SubnetType:        &subnetType,
-							ClusterReference:  ptr.To(peUUID),
+							ExtId:            ptr.To("vlan-subnet-uuid"),
+							Name:             ptr.To("my-vlan"),
+							SubnetType:       &subnetType,
+							ClusterReference: ptr.To(peUUID),
 						},
 					}, nil)
 				return convergedClient.Client
@@ -1918,6 +1973,7 @@ func TestGetStorageContainerInCluster(t *testing.T) {
 		want               *clusterModels.StorageContainer
 		wantErr            bool
 		errorMessage       string
+		assertNotFound     bool
 	}{
 		{
 			name: "GetStorageContainerInCluster succeeds with ID UUID",
@@ -1994,6 +2050,26 @@ func TestGetStorageContainerInCluster(t *testing.T) {
 			want:         &storageContainers[0],
 			wantErr:      false,
 			errorMessage: "",
+		},
+		{
+			name: "GetStorageContainerInCluster returns classified not found when no containers match",
+			mockBuilder: func() *v4Converged.Client {
+				mockClientWrapper := NewMockConvergedClient(mockctl)
+				mockClientWrapper.MockStorageContainers.EXPECT().List(gomock.Any(), gomock.Any()).Return([]clusterModels.StorageContainer{}, nil)
+				return mockClientWrapper.Client
+			},
+			clusterId: infrav1.NutanixResourceIdentifier{
+				Type: infrav1.NutanixIdentifierUUID,
+				UUID: ptr.To("00062e56-b9ac-7253-1946-7cc25586eeee"),
+			},
+			storageContainerId: infrav1.NutanixResourceIdentifier{
+				Type: infrav1.NutanixIdentifierUUID,
+				UUID: ptr.To("2a61b02a-54a6-475e-93b9-5efc895b48e3"),
+			},
+			want:           nil,
+			wantErr:        true,
+			errorMessage:   "found no storage container using filter",
+			assertNotFound: true,
 		},
 		{
 			name: "GetStorageContainerInCluster fails",
@@ -2114,8 +2190,71 @@ func TestGetStorageContainerInCluster(t *testing.T) {
 			if tt.errorMessage != "" {
 				assert.Contains(t, err.Error(), tt.errorMessage)
 			}
+			if tt.assertNotFound {
+				assert.True(t, isTerminalError(err))
+			}
 		})
 	}
+}
+
+func TestGetPrismReferencesOfCategoryIdentifiers_NotFoundClassification(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	mockClient := NewMockConvergedClient(ctrl)
+	mockClient.MockCategories.EXPECT().List(ctx, gomock.Any()).Return([]prismModels.Category{}, nil)
+
+	_, err := GetPrismReferencesOfCategoryIdentifiers(ctx, mockClient.Client, []*infrav1.NutanixCategoryIdentifier{
+		{
+			Key:   "cluster-name",
+			Value: "missing",
+		},
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found in category")
+	assert.True(t, isTerminalError(err))
+}
+
+func TestGetProjectUUID_NotFoundClassification(t *testing.T) {
+	t.Run("returns classified not found for missing project UUID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		mockV3Client := mocknutanixv3.NewMockService(ctrl)
+		client := &prismclientv3.Client{V3: mockV3Client}
+		projectUUID := "missing-project-uuid"
+
+		mockV3Client.EXPECT().GetProject(ctx, projectUUID).Return(nil, errors.New("ENTITY_NOT_FOUND"))
+
+		_, err := GetProjectUUID(ctx, client, nil, &projectUUID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to find project with UUID")
+		assert.True(t, isTerminalError(err))
+	})
+
+	t.Run("returns classified not found for missing project name", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := context.Background()
+		mockV3Client := mocknutanixv3.NewMockService(ctrl)
+		client := &prismclientv3.Client{V3: mockV3Client}
+		projectName := "missing-project-name"
+
+		mockV3Client.EXPECT().ListAllProject(ctx, "").Return(&prismclientv3.ProjectListResponse{
+			Entities: []*prismclientv3.Project{},
+		}, nil)
+
+		_, err := GetProjectUUID(ctx, client, &projectName, nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to retrieve project by name")
+		assert.True(t, isTerminalError(err))
+	})
 }
 
 func TestDeleteVM(t *testing.T) {
@@ -2364,6 +2503,7 @@ func TestGetGPU(t *testing.T) {
 		_, err := GetGPU(ctx, mockClientWrapper.Client, peUUID, gpu)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no available GPUs found")
+		assert.True(t, isTerminalError(err))
 	})
 }
 
@@ -2849,9 +2989,6 @@ type MockConvergedClientWrapper struct {
 	MockTasks                *mockconverged.MockTasks[prismModels.Task, prismErrors.AppMessage]
 	MockVolumeGroups         *mockconverged.MockVolumeGroups[volumesconfig.VolumeGroup, volumesconfig.VmAttachment]
 	MockDomainManager        *mockconverged.MockDomainManager[prismModels.DomainManager]
-	MockUsers                *mockconverged.MockUsers[iamModels.User]
-	MockTemplates            *mockconverged.MockTemplates[imageModels.Template]
-	MockOvas                 *mockconverged.MockOvas[imageModels.Ova, imageModels.FileDetail]
 }
 
 // NewMockConvergedClient creates a new mock converged client
@@ -2866,10 +3003,8 @@ func NewMockConvergedClient(ctrl *gomock.Controller) *MockConvergedClientWrapper
 	mockVMs := mockconverged.NewMockVMs[vmmModels.Vm](ctrl)
 	mockVolumeGroups := mockconverged.NewMockVolumeGroups[volumesconfig.VolumeGroup, volumesconfig.VmAttachment](ctrl)
 	mockDomainManager := mockconverged.NewMockDomainManager[prismModels.DomainManager](ctrl)
-	mockUsers := mockconverged.NewMockUsers[iamModels.User](ctrl)
-	mockTemplates := mockconverged.NewMockTemplates[imageModels.Template](ctrl)
-	mockOvas := mockconverged.NewMockOvas[imageModels.Ova, imageModels.FileDetail](ctrl)
-
+	mockProtectionPolicies := mockconverged.NewMockProtectionPolicies[dataPoliciesModels.ProtectionPolicy](ctrl)
+	mockRecoveryPlans := mockconverged.NewMockRecoveryPlans[dataPoliciesModels.RecoveryPlan](ctrl)
 	realClient := &v4Converged.Client{
 		Client: converged.Client[
 			policyModels.VmAntiAffinityPolicy,
@@ -2890,9 +3025,17 @@ func NewMockConvergedClient(ctrl *gomock.Controller) *MockConvergedClientWrapper
 			volumesconfig.VmAttachment,
 			prismModels.DomainManager,
 			iamModels.User,
+			authzModels.Role,
+			authzModels.AuthorizationPolicy,
+			authzModels.AuthorizationPolicyProjection,
+			authzModels.Operation,
 			imageModels.Template,
 			imageModels.Ova,
 			imageModels.FileDetail,
+			dataPoliciesModels.ProtectionPolicy,
+			dataPoliciesModels.RecoveryPlan,
+			clusterModels.Disk,
+			alertModels.Alert,
 		]{
 			AntiAffinityPolicies: mockAntiAffinityPolicies,
 			Clusters:             mockClusters,
@@ -2904,9 +3047,10 @@ func NewMockConvergedClient(ctrl *gomock.Controller) *MockConvergedClientWrapper
 			Tasks:                mockTasks,
 			VolumeGroups:         mockVolumeGroups,
 			DomainManager:        mockDomainManager,
-			Users:                mockUsers,
-			Templates:            mockTemplates,
-			Ovas:                 mockOvas,
+			DataPolicies: converged.DataPolicies[dataPoliciesModels.ProtectionPolicy, dataPoliciesModels.RecoveryPlan]{
+				ProtectionPolicies: mockProtectionPolicies,
+				RecoveryPlans:      mockRecoveryPlans,
+			},
 		},
 	}
 
@@ -2922,9 +3066,6 @@ func NewMockConvergedClient(ctrl *gomock.Controller) *MockConvergedClientWrapper
 		MockTasks:                mockTasks,
 		MockVolumeGroups:         mockVolumeGroups,
 		MockDomainManager:        mockDomainManager,
-		MockUsers:                mockUsers,
-		MockTemplates:            mockTemplates,
-		MockOvas:                 mockOvas,
 	}
 }
 

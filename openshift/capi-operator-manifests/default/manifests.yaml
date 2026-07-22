@@ -1704,9 +1704,28 @@ spec:
             required:
             - template
             type: object
+          status:
+            description: NutanixMachineTemplateStatus defines the observed state of
+              a NutanixMachineTemplate.
+            properties:
+              capacity:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: |-
+                  capacity defines the resource capacity for this NutanixMachineTemplate.
+                  This value is used by the Cluster Autoscaler for autoscaling from zero operations as defined in:
+                  https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20210310-opt-in-autoscaling-from-zero.md
+                type: object
+            type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -2269,6 +2288,624 @@ spec:
     subresources:
       status: {}
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    clusterctl.cluster.x-k8s.io/skip-crd-name-preflight-check: "true"
+    controller-gen.kubebuilder.io/version: v0.19.0
+  labels:
+    cluster.x-k8s.io/provider: infrastructure-nutanix
+    cluster.x-k8s.io/v1beta1: v1beta1
+    clusterctl.cluster.x-k8s.io/move: ""
+  name: nutanixmetros.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: NutanixMetro
+    listKind: NutanixMetroList
+    plural: nutanixmetros
+    singular: nutanixmetro
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: References of NutanixFailureDomain objects
+      jsonPath: .spec.failureDomains
+      name: FailureDomains
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: NutanixMetro is the Schema for the NutanixMetro API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NutanixMetroSpec defines the desired state of NutanixMetro
+            properties:
+              failureDomains:
+                description: failureDomains holds references to the two NutanixFailureDomain
+                  objects of the NutanixMetro.
+                items:
+                  description: |-
+                    LocalObjectReference contains enough information to let you locate the
+                    referenced object inside the same namespace.
+                  properties:
+                    name:
+                      default: ""
+                      description: |-
+                        Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                maxItems: 2
+                minItems: 2
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+                x-kubernetes-validations:
+                - message: failureDomains is immutable once set
+                  rule: self == oldSelf
+                - message: each failureDomain reference name must not be empty
+                  rule: self.all(x, x.name != "")
+            required:
+            - failureDomains
+            type: object
+          status:
+            description: NutanixMetroStatus defines the state of the NutanixMetro
+              resource.
+            properties:
+              conditions:
+                description: conditions represent the latest states of the metro
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  labels:
+    cluster.x-k8s.io/provider: infrastructure-nutanix
+    cluster.x-k8s.io/v1beta1: v1beta1
+    clusterctl.cluster.x-k8s.io/move: ""
+  name: nutanixmetrosites.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: NutanixMetroSite
+    listKind: NutanixMetroSiteList
+    plural: nutanixmetrosites
+    singular: nutanixmetrosite
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Reference of the preferred NutanixFailureDomain object
+      jsonPath: .spec.preferredFailureDomain
+      name: PreferredFailureDomain
+      type: string
+    - description: Reference of NutanixMetro object this site belongs to
+      jsonPath: .spec.metroRef
+      name: Metro
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: NutanixMetroSite is the Schema for the NutanixMetroSite API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NutanixMetroSiteSpec defines the desired state of NutanixMetroSite
+            properties:
+              groupNameLabel:
+                description: groupNameLabel optionally provides name for a group of
+                  worker nodes normally anchored to a topology segment.
+                type: string
+              metroRef:
+                description: metroRef holds reference to the NutanixMetro object this
+                  site belongs to.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: metroRef is immutable once set
+                  rule: self == oldSelf
+                - message: metroRef.name must not be empty
+                  rule: self.name != ""
+              preferredFailureDomain:
+                description: preferredFailureDomain holds reference to the preferred
+                  NutanixFailureDomain object of the NutanixMetroSite.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: preferredFailureDomain is immutable once set
+                  rule: self == oldSelf
+                - message: preferredFailureDomain.name must not be empty
+                  rule: self.name != ""
+            required:
+            - metroRef
+            - preferredFailureDomain
+            type: object
+          status:
+            description: NutanixMetroSiteStatus defines the state of the NutanixMetroSite
+              resource.
+            properties:
+              conditions:
+                description: conditions represent the latest states of the metro site,
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  labels:
+    cluster.x-k8s.io/provider: infrastructure-nutanix
+    cluster.x-k8s.io/v1beta1: v1beta1
+    clusterctl.cluster.x-k8s.io/move: ""
+  name: nutanixvirtualhadomains.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: NutanixVirtualHADomain
+    listKind: NutanixVirtualHADomainList
+    plural: nutanixvirtualhadomains
+    shortNames:
+    - nvha
+    singular: nutanixvirtualhadomain
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Reference of NutanixMetro object
+      jsonPath: .spec.metroRef.name
+      name: Metro
+      type: string
+    - description: the vHA domain PC resources are ready or not
+      jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: NutanixVirtualHADomain is the Schema for the NutanixVirtualHADomains
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NutanixVirtualHADomainSpec defines the desired state of NutanixVirtualHADomain.
+            properties:
+              metroRef:
+                description: metroRef is a reference to the NutanixMetro object that
+                  this virtual HA domain belongs to.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: metroRef is immutable once set
+                  rule: self == oldSelf
+                - message: metroRef.name must not be empty
+                  rule: self.name != ""
+              movementGroups:
+                description: movementGroups defines the named groups of entities that
+                  move together within this virtual HA domain.
+                items:
+                  description: |-
+                    NutanixMovementGroup defines a named group of entities that are moved together as part of a
+                    virtual HA domain failover or migration. It maps each category to the recovery plan
+                    that protects the entities associated with that category.
+                  properties:
+                    categoryRecoveryPlans:
+                      description: |-
+                        categoryRecoveryPlans is the list of category-to-recovery-plan mappings whose
+                        member entities belong to this movement group.
+                      items:
+                        description: |-
+                          NutanixCategoryRecoveryPlan maps a category to the recovery plan that protects the
+                          entities belonging to that category within a movement group, on a given Prism Element.
+                        properties:
+                          category:
+                            description: category is the category (key/value) whose
+                              member entities are protected.
+                            properties:
+                              key:
+                                description: key is the Key of category in PC.
+                                type: string
+                              value:
+                                description: value is the category value linked to
+                                  the category key in PC
+                                type: string
+                            type: object
+                          failureDomainRef:
+                            description: |-
+                              failureDomainRef is a reference to the NutanixFailureDomain object that identifies the
+                              Prism Element cluster for this category-to-recovery-plan mapping.
+                            properties:
+                              name:
+                                default: ""
+                                description: |-
+                                  Name of the referent.
+                                  This field is effectively required, but due to backwards compatibility is
+                                  allowed to be empty. Instances of this type with an empty value here are
+                                  almost certainly wrong.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                            x-kubernetes-validations:
+                            - message: failureDomainRef.name must not be empty
+                              rule: self.name != ""
+                          recoveryPlan:
+                            description: recoveryPlan is the recovery plan associated
+                              with the category.
+                            properties:
+                              name:
+                                description: name is the resource name in the PC
+                                minLength: 1
+                                type: string
+                              type:
+                                description: Type is the identifier type to use for
+                                  this resource.
+                                enum:
+                                - uuid
+                                - name
+                                type: string
+                              uuid:
+                                description: uuid is the UUID of the resource in the
+                                  PC.
+                                format: uuid
+                                maxLength: 36
+                                minLength: 36
+                                type: string
+                            required:
+                            - type
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '''name'' must be set when type is ''name'',
+                                and forbidden otherwise'
+                              rule: 'self.type == ''name'' ? has(self.name) : !has(self.name)'
+                            - message: '''uuid'' must be set when type is ''uuid'',
+                                and forbidden otherwise'
+                              rule: 'self.type == ''uuid'' ? has(self.uuid) && self.uuid.contains(''-'')
+                                : !has(self.uuid)'
+                        required:
+                        - category
+                        - failureDomainRef
+                        - recoveryPlan
+                        type: object
+                      maxItems: 2
+                      minItems: 2
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    name:
+                      description: name is the name of the movement group
+                      maxLength: 64
+                      minLength: 1
+                      pattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
+                      type: string
+                  required:
+                  - categoryRecoveryPlans
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              protectionPolicy:
+                description: protectionPolicy identifies the protection policy PC
+                  resource applied to this virtual HA domain.
+                properties:
+                  name:
+                    description: name is the resource name in the PC
+                    minLength: 1
+                    type: string
+                  type:
+                    description: Type is the identifier type to use for this resource.
+                    enum:
+                    - uuid
+                    - name
+                    type: string
+                  uuid:
+                    description: uuid is the UUID of the resource in the PC.
+                    format: uuid
+                    maxLength: 36
+                    minLength: 36
+                    type: string
+                required:
+                - type
+                type: object
+                x-kubernetes-validations:
+                - message: '''name'' must be set when type is ''name'', and forbidden
+                    otherwise'
+                  rule: 'self.type == ''name'' ? has(self.name) : !has(self.name)'
+                - message: '''uuid'' must be set when type is ''uuid'', and forbidden
+                    otherwise'
+                  rule: 'self.type == ''uuid'' ? has(self.uuid) && self.uuid.contains(''-'')
+                    : !has(self.uuid)'
+            required:
+            - metroRef
+            type: object
+          status:
+            description: NutanixVirtualHADomainStatus defines the observed state of
+              NutanixVirtualHADomain.
+            properties:
+              conditions:
+                description: conditions represent the latest states of the virtual
+                  HA domain.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ready:
+                default: false
+                description: |-
+                  ready is set to true when the vHA domain PC resources (categories, protection
+                  policy, and recovery plan) are valid and ready.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2328,6 +2965,7 @@ rules:
   - cluster.x-k8s.io
   resources:
   - clusters/status
+  - machinedeployments
   - machines
   - machines/status
   verbs:
@@ -2340,6 +2978,9 @@ rules:
   - nutanixclusters
   - nutanixfailuredomains
   - nutanixmachines
+  - nutanixmetros
+  - nutanixmetrosites
+  - nutanixvirtualhadomains
   verbs:
   - create
   - delete
@@ -2362,10 +3003,25 @@ rules:
   - nutanixfailuredomains/finalizers
   - nutanixfailuredomains/status
   - nutanixmachines/status
+  - nutanixmachinetemplates/status
+  - nutanixmetros/finalizers
+  - nutanixmetros/status
+  - nutanixmetrosites/finalizers
+  - nutanixmetrosites/status
+  - nutanixvirtualhadomains/finalizers
+  - nutanixvirtualhadomains/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - nutanixmachinetemplates
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -2562,7 +3218,7 @@ spec:
     spec:
       containers:
       - args:
-        - --health-probe-bind-address=:8081
+        - --health-addr=:8081
         - --diagnostics-address=:8443
         - --leader-elect
         - --feature-gates=DefaultToPlaceholderImageName=true,DefaultToPlaceholderImageUUID=true
@@ -2633,7 +3289,7 @@ spec:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: webhook-server-cert
+          secretName: capx-webhook-service-cert
       - configMap:
           name: capx-nutanix-endpoint
         name: endpoint
@@ -2697,7 +3353,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
+    service.beta.openshift.io/serving-cert-secret-name: capx-webhook-service-cert
   labels:
     cluster.x-k8s.io/provider: infrastructure-nutanix
   name: capx-webhook-service

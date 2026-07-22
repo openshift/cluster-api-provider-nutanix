@@ -48,6 +48,7 @@ rules:
   - cluster.x-k8s.io
   resources:
   - clusters/status
+  - machinedeployments
   - machines
   - machines/status
   verbs:
@@ -60,6 +61,9 @@ rules:
   - nutanixclusters
   - nutanixfailuredomains
   - nutanixmachines
+  - nutanixmetros
+  - nutanixmetrosites
+  - nutanixvirtualhadomains
   verbs:
   - create
   - delete
@@ -82,7 +86,22 @@ rules:
   - nutanixfailuredomains/finalizers
   - nutanixfailuredomains/status
   - nutanixmachines/status
+  - nutanixmachinetemplates/status
+  - nutanixmetros/finalizers
+  - nutanixmetros/status
+  - nutanixmetrosites/finalizers
+  - nutanixmetrosites/status
+  - nutanixvirtualhadomains/finalizers
+  - nutanixvirtualhadomains/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - nutanixmachinetemplates
+  verbs:
+  - get
+  - list
+  - watch

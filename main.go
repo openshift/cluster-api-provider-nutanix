@@ -18,13 +18,20 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"time"
 
+	//+kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
+
 	"github.com/go-logr/logr"
+	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
+	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/controllers"
+	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/feature"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/time/rate"
@@ -48,11 +55,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	infrav1 "github.com/nutanix-cloud-native/cluster-api-provider-nutanix/api/v1beta1"
-	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/controllers"
-	"github.com/nutanix-cloud-native/cluster-api-provider-nutanix/pkg/feature"
-	//+kubebuilder:scaffold:imports
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var scheme = runtime.NewScheme()
@@ -71,11 +74,24 @@ func init() {
 const (
 	// DefaultMaxConcurrentReconciles is the default maximum number of concurrent reconciles
 	defaultMaxConcurrentReconciles = 10
+
+	// defaultWebhookPort is the default port the webhook server binds to. It matches the
+	// controller-runtime default and the containerPort in config/default/manager_webhook_patch.yaml.
+	defaultWebhookPort = 9443
+
+	// defaultWebhookCertDir is the default directory that contains the webhook server's
+	// TLS key and certificate. It matches the controller-runtime default.
+	defaultWebhookCertDir = "/tmp/k8s-webhook-server/serving-certs"
+
+	// defaultHealthProbeAddr is the default address the health probe endpoint binds to.
+	defaultHealthProbeAddr = ":8081"
 )
 
 type options struct {
 	enableLeaderElection    bool
 	healthProbeAddr         string
+	webhookPort             int
+	webhookCertDir          string
 	maxConcurrentReconciles int
 
 	rateLimiterBaseDelay  time.Duration
@@ -90,9 +106,12 @@ type options struct {
 type managerConfig struct {
 	enableLeaderElection               bool
 	healthProbeAddr                    string
+	webhookPort                        int
+	webhookCertDir                     string
 	concurrentReconcilesNutanixCluster int
 	concurrentReconcilesNutanixMachine int
 	metricsServerOpts                  server.Options
+	tlsOptions                         []func(*tls.Config)
 	skipNameValidation                 bool
 
 	logger      logr.Logger
@@ -158,7 +177,22 @@ func initializeFlags() *options {
 	opts.zapOptions.BindFlags(flag.CommandLine)
 
 	// Add our own flags to the pflag FlagSet.
-	pflag.StringVar(&opts.healthProbeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	//
+	// --health-addr is the canonical name, matching the other Cluster API providers
+	// (CAPA/CAPG/CAPZ/CAPV). --health-probe-bind-address is kept as a deprecated alias
+	// for backwards compatibility; both bind to the same target.
+	pflag.StringVar(&opts.healthProbeAddr, "health-addr", defaultHealthProbeAddr,
+		"The address the health probe endpoint binds to.")
+	pflag.StringVar(&opts.healthProbeAddr, "health-probe-bind-address", defaultHealthProbeAddr,
+		"The address the probe endpoint binds to.")
+	if err := pflag.CommandLine.MarkDeprecated("health-probe-bind-address", "use --health-addr instead"); err != nil {
+		panic(fmt.Sprintf("failed to mark --health-probe-bind-address deprecated: %v", err))
+	}
+
+	pflag.IntVar(&opts.webhookPort, "webhook-port", defaultWebhookPort, "The webhook server port.")
+	pflag.StringVar(&opts.webhookCertDir, "webhook-cert-dir", defaultWebhookCertDir,
+		"The directory that contains the webhook server key and certificate.")
+
 	pflag.BoolVar(&opts.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 
@@ -187,17 +221,20 @@ func initializeConfig(opts *options) (*managerConfig, error) {
 	config := &managerConfig{
 		enableLeaderElection: opts.enableLeaderElection,
 		healthProbeAddr:      opts.healthProbeAddr,
+		webhookPort:          opts.webhookPort,
+		webhookCertDir:       opts.webhookCertDir,
 	}
 
-	_, metricsServerOpts, err := capiflags.GetManagerOptions(opts.managerOptions)
+	tlsOptions, metricsServerOpts, err := capiflags.GetManagerOptions(opts.managerOptions)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get metrics server options: %w", err)
+		return nil, fmt.Errorf("unable to get manager options: %w", err)
 	}
 	if metricsServerOpts == nil {
 		return nil, errors.New("parsed manager options are nil")
 	}
 	metricsServerOpts.FilterProvider = filters.WithAuthenticationAndAuthorization
 	config.metricsServerOpts = *metricsServerOpts
+	config.tlsOptions = tlsOptions
 
 	config.concurrentReconcilesNutanixCluster = opts.maxConcurrentReconciles
 	config.concurrentReconcilesNutanixMachine = opts.maxConcurrentReconciles
@@ -326,11 +363,94 @@ func setupNutanixFailureDomainController(ctx context.Context, mgr manager.Manage
 	return nil
 }
 
+func setupNutanixMachineTemplateController(ctx context.Context, mgr manager.Manager,
+	opts ...controllers.ControllerConfigOpts,
+) error {
+	templateCtrl, err := controllers.NewNutanixMachineTemplateReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		opts...,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create NutanixMachineTemplate controller: %w", err)
+	}
+
+	if err := templateCtrl.SetupWithManager(ctx, mgr); err != nil {
+		return fmt.Errorf("unable to setup NutanixMachineTemplate controller with manager: %w", err)
+	}
+
+	return nil
+}
+
 func setupNutanixMachineTemplateWebhook(mgr manager.Manager) error {
 	defaulter := &infrav1.NutanixMachineTemplateDefaulter{}
 	if err := defaulter.SetupWebhookWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to setup NutanixMachineTemplate webhook: %w", err)
 	}
+
+	return nil
+}
+
+func setupNutanixMetroController(ctx context.Context, mgr manager.Manager, secretInformer coreinformers.SecretInformer,
+	configMapInformer coreinformers.ConfigMapInformer, opts ...controllers.ControllerConfigOpts,
+) error {
+	machineCtrl, err := controllers.NewNutanixMetroReconciler(
+		mgr.GetClient(),
+		secretInformer,
+		configMapInformer,
+		mgr.GetScheme(),
+		opts...,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create NutanixMetro controller: %w", err)
+	}
+
+	if err := machineCtrl.SetupWithManager(ctx, mgr); err != nil {
+		return fmt.Errorf("unable to setup NutanixMetro controller with manager: %w", err)
+	}
+
+	return nil
+}
+
+func setupNutanixMetroSiteController(ctx context.Context, mgr manager.Manager, secretInformer coreinformers.SecretInformer,
+	configMapInformer coreinformers.ConfigMapInformer, opts ...controllers.ControllerConfigOpts,
+) error {
+	machineCtrl, err := controllers.NewNutanixMetroSiteReconciler(
+		mgr.GetClient(),
+		secretInformer,
+		configMapInformer,
+		mgr.GetScheme(),
+		opts...,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create NutanixMetroSite controller: %w", err)
+	}
+
+	if err := machineCtrl.SetupWithManager(ctx, mgr); err != nil {
+		return fmt.Errorf("unable to setup NutanixMetroSite controller with manager: %w", err)
+	}
+
+	return nil
+}
+
+func setupNutanixVirtualHADomainController(ctx context.Context, mgr manager.Manager, secretInformer coreinformers.SecretInformer,
+	configMapInformer coreinformers.ConfigMapInformer, opts ...controllers.ControllerConfigOpts,
+) error {
+	machineCtrl, err := controllers.NewNutanixVirtualHADomainReconciler(
+		mgr.GetClient(),
+		secretInformer,
+		configMapInformer,
+		mgr.GetScheme(),
+		opts...,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create NutanixVirtualHADomain controller: %w", err)
+	}
+
+	if err := machineCtrl.SetupWithManager(ctx, mgr); err != nil {
+		return fmt.Errorf("unable to setup NutanixVirtualHADomain controller with manager: %w", err)
+	}
+
 	return nil
 }
 
@@ -379,6 +499,21 @@ func runManager(ctx context.Context, mgr manager.Manager, config *managerConfig)
 		return fmt.Errorf("unable to setup controllers: %w", err)
 	}
 
+	if err := setupNutanixMachineTemplateController(ctx, mgr, machineControllerOpts...); err != nil {
+		return fmt.Errorf("unable to setup controllers: %w", err)
+	}
+	if err := setupNutanixMetroController(ctx, mgr, secretInformer, configMapInformer, machineControllerOpts...); err != nil {
+		return fmt.Errorf("unable to setup controllers: %w", err)
+	}
+
+	if err := setupNutanixMetroSiteController(ctx, mgr, secretInformer, configMapInformer, machineControllerOpts...); err != nil {
+		return fmt.Errorf("unable to setup controllers: %w", err)
+	}
+
+	if err := setupNutanixVirtualHADomainController(ctx, mgr, secretInformer, configMapInformer, machineControllerOpts...); err != nil {
+		return fmt.Errorf("unable to setup controllers: %w", err)
+	}
+
 	config.logger.Info("starting CAPX Controller Manager")
 	if err := mgr.Start(ctx); err != nil {
 		return fmt.Errorf("problem running manager: %w", err)
@@ -389,8 +524,13 @@ func runManager(ctx context.Context, mgr manager.Manager, config *managerConfig)
 
 func initializeManager(config *managerConfig) (manager.Manager, error) {
 	mgr, err := ctrl.NewManager(config.restConfig, ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                config.metricsServerOpts,
+		Scheme:  scheme,
+		Metrics: config.metricsServerOpts,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port:    config.webhookPort,
+			CertDir: config.webhookCertDir,
+			TLSOpts: config.tlsOptions,
+		}),
 		HealthProbeBindAddress: config.healthProbeAddr,
 		LeaderElection:         config.enableLeaderElection,
 		LeaderElectionID:       "f265110d.cluster.x-k8s.io",
