@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,6 +81,10 @@ func init() {
 // NutanixMachineReconciler reconciles a NutanixMachine object
 type NutanixMachineReconciler struct {
 	client.Client
+	// APIReader reads directly from the API server (bypassing the cache). Metro VM placement uses it
+	// to enumerate sibling NutanixMachines so concurrent reconciles all observe the same set and
+	// compute the same balanced placement, instead of racing on a stale informer cache.
+	APIReader         client.Reader
 	SecretInformer    coreinformers.SecretInformer
 	ConfigMapInformer coreinformers.ConfigMapInformer
 	Scheme            *runtime.Scheme
@@ -105,6 +110,9 @@ func NewNutanixMachineReconciler(client client.Client, secretInformer coreinform
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NutanixMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	if r.APIReader == nil {
+		r.APIReader = mgr.GetAPIReader()
+	}
 	copts := controller.Options{
 		MaxConcurrentReconciles: r.controllerConfig.MaxConcurrentReconciles,
 		RateLimiter:             r.controllerConfig.RateLimiter,
@@ -283,6 +291,7 @@ func (r *NutanixMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		NutanixMachine:  ntxMachine,
 		NutanixClient:   v3Client,
 		ConvergedClient: convergedClient,
+		Datastore:       map[string]*string{},
 	}
 
 	defer func() {
@@ -322,7 +331,7 @@ func (r *NutanixMachineReconciler) reconcileDelete(rctx *nctx.MachineContext) (r
 	})
 	vmUUID, err := GetVMUUID(rctx.Machine, rctx.NutanixMachine)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to get VM UUID during delete: %v", err)
+		errorMsg := fmt.Errorf("failed to get VM UUID during delete: %w", err)
 		log.Error(errorMsg, "failed to delete VM")
 		return reconcile.Result{}, errorMsg
 	}
@@ -338,7 +347,7 @@ func (r *NutanixMachineReconciler) reconcileDelete(rctx *nctx.MachineContext) (r
 
 	vm, err := FindVMByUUID(ctx, convergedClient, vmUUID)
 	if err != nil {
-		errorMsg := fmt.Errorf("error finding VM %s with UUID %s: %v", vmName, vmUUID, err)
+		errorMsg := fmt.Errorf("error finding VM %s with UUID %s: %w", vmName, vmUUID, err)
 		log.Error(errorMsg, "error finding VM")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.DeletionFailed, capiv1beta1.ConditionSeverityWarning, "%s", errorMsg.Error())
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
@@ -371,7 +380,7 @@ func (r *NutanixMachineReconciler) reconcileDelete(rctx *nctx.MachineContext) (r
 
 	taskInProgress, err := VmHasTaskInProgress(ctx, convergedClient, vmUUID)
 	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while fetching running task from VM: %v", err)
+		errorMsg := fmt.Errorf("error occurred while fetching running task from VM: %w", err)
 		log.Error(errorMsg, "error fetching running task from VM")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.DeletionFailed, capiv1beta1.ConditionSeverityWarning, "%s", errorMsg.Error())
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
@@ -398,7 +407,7 @@ func (r *NutanixMachineReconciler) reconcileDelete(rctx *nctx.MachineContext) (r
 	}
 	if vgDetachNeeded {
 		if err := r.detachVolumeGroups(rctx, vmName, vmUUID, vm.Disks); err != nil {
-			err := fmt.Errorf("failed to detach volume groups from VM %s with UUID %s: %v", vmName, vmUUID, err)
+			err := fmt.Errorf("failed to detach volume groups from VM %s with UUID %s: %w", vmName, vmUUID, err)
 			log.Error(err, "failed to detach volume groups from VM")
 			v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.VolumeGroupDetachFailed, capiv1beta1.ConditionSeverityWarning, "%s", err.Error())
 			v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
@@ -420,7 +429,7 @@ func (r *NutanixMachineReconciler) reconcileDelete(rctx *nctx.MachineContext) (r
 	// Delete the VM since the VM was found (err was nil)
 	deleteTaskUUID, err := DeleteVM(ctx, convergedClient, vmName, vmUUID)
 	if err != nil {
-		err := fmt.Errorf("failed to delete VM %s with UUID %s: %v", vmName, vmUUID, err)
+		err := fmt.Errorf("failed to delete VM %s with UUID %s: %w", vmName, vmUUID, err)
 		log.Error(err, "failed to delete VM")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.DeletionFailed, capiv1beta1.ConditionSeverityWarning, "%s", err.Error())
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
@@ -478,7 +487,7 @@ func (r *NutanixMachineReconciler) reconcileNormal(rctx *nctx.MachineContext) (r
 
 	// Make sure Cluster.Status.InfrastructureReady is true
 	log.Info("Checking if cluster infrastructure is ready")
-	infraReady := rctx.Cluster.Status.Initialization.InfrastructureProvisioned != nil || *rctx.Cluster.Status.Initialization.InfrastructureProvisioned
+	infraReady := rctx.Cluster.Status.Initialization.InfrastructureProvisioned != nil && *rctx.Cluster.Status.Initialization.InfrastructureProvisioned
 	if !infraReady {
 		log.Info("The cluster infrastructure is not ready yet")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.ClusterInfrastructureNotReady, capiv1beta1.ConditionSeverityInfo, "")
@@ -491,36 +500,8 @@ func (r *NutanixMachineReconciler) reconcileNormal(rctx *nctx.MachineContext) (r
 	}
 
 	// Make sure bootstrap data is available and populated.
-	if rctx.NutanixMachine.Spec.BootstrapRef == nil {
-		if rctx.Machine.Spec.Bootstrap.DataSecretName == nil {
-			controlPlaneInitialized := rctx.Cluster.Status.Initialization.ControlPlaneInitialized != nil && *rctx.Cluster.Status.Initialization.ControlPlaneInitialized
-			if !nctx.IsControlPlaneMachine(rctx.NutanixMachine) && !controlPlaneInitialized {
-				log.Info("Waiting for the control plane to be initialized")
-				v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.ControlplaneNotInitialized, capiv1beta1.ConditionSeverityInfo, "")
-				v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
-					Type:   string(infrav1.VMProvisionedCondition),
-					Status: metav1.ConditionFalse,
-					Reason: infrav1.ControlplaneNotInitialized,
-				})
-			} else {
-				v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.BootstrapDataNotReady, capiv1beta1.ConditionSeverityInfo, "")
-				v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
-					Type:   string(infrav1.VMProvisionedCondition),
-					Status: metav1.ConditionFalse,
-					Reason: infrav1.BootstrapDataNotReady,
-				})
-				log.Info("Waiting for bootstrap data to be available")
-			}
-			return reconcile.Result{}, nil
-		}
-
-		rctx.NutanixMachine.Spec.BootstrapRef = &corev1.ObjectReference{
-			APIVersion: "v1",
-			Kind:       "Secret",
-			Name:       *rctx.Machine.Spec.Bootstrap.DataSecretName,
-			Namespace:  rctx.Machine.Namespace,
-		}
-		log.V(1).Info(fmt.Sprintf("Added the spec.bootstrapRef to NutanixMachine object: %v", rctx.NutanixMachine.Spec.BootstrapRef))
+	if ready := r.ensureBootstrapRef(rctx); !ready {
+		return reconcile.Result{}, nil
 	}
 
 	// Create or get existing VM
@@ -530,6 +511,21 @@ func (r *NutanixMachineReconciler) reconcileNormal(rctx *nctx.MachineContext) (r
 		return reconcile.Result{}, err
 	}
 	log.V(1).Info(fmt.Sprintf("Found VM with name: %s, vmUUID: %s", rctx.Machine.Name, *vm.ExtId))
+
+	// API errors are retried on the next loop without blocking VM provisioning progress.
+	if err := r.addCustomAttributes(rctx, vm); err != nil {
+		log.Error(err, fmt.Sprintf("Failed to add custom attributes to VM %s.", rctx.Machine.Name))
+		return reconcile.Result{}, err
+	}
+
+	// Power-on is an explicit reconcile step after VM discovery/creation.
+	if vm.PowerState == nil || *vm.PowerState != vmmconfig.POWERSTATE_ON {
+		vm, err = r.powerOnVM(rctx, *vm.ExtId, rctx.Machine.Name)
+		if err != nil {
+			log.Error(err, fmt.Sprintf("Failed to power on VM %s.", rctx.Machine.Name))
+			return reconcile.Result{}, err
+		}
+	}
 
 	// Set and sync VmUUID with SystemUUID to ensure consistency
 	if err := r.syncVmUUID(rctx, *vm.ExtId); err != nil {
@@ -545,14 +541,14 @@ func (r *NutanixMachineReconciler) reconcileNormal(rctx *nctx.MachineContext) (r
 
 	log.V(1).Info(fmt.Sprintf("Patching machine post creation vmUUID: %s", rctx.NutanixMachine.Status.VmUUID))
 	if err := r.patchMachine(rctx); err != nil {
-		errorMsg := fmt.Errorf("failed to patch NutanixMachine %s after creation. %v", rctx.NutanixMachine.Name, err)
+		errorMsg := fmt.Errorf("failed to patch NutanixMachine %s after creation: %w", rctx.NutanixMachine.Name, err)
 		log.Error(errorMsg, "failed to patch")
 		return reconcile.Result{}, errorMsg
 	}
 
 	log.Info(fmt.Sprintf("Assigning IP addresses to VM with name: %s, vmUUID: %s", rctx.NutanixMachine.Name, rctx.NutanixMachine.Status.VmUUID))
 	if err := r.assignAddressesToMachine(rctx, vm); err != nil {
-		errorMsg := fmt.Errorf("failed to assign addresses to VM %s with UUID %s...: %v", rctx.Machine.Name, rctx.NutanixMachine.Status.VmUUID, err)
+		errorMsg := fmt.Errorf("failed to assign addresses to VM %s with UUID %s: %w", rctx.Machine.Name, rctx.NutanixMachine.Status.VmUUID, err)
 		log.Error(errorMsg, "failed to assign addresses")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMAddressesAssignedCondition, infrav1.VMAddressesFailed, capiv1beta1.ConditionSeverityError, "%s", err.Error())
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
@@ -578,6 +574,48 @@ func (r *NutanixMachineReconciler) reconcileNormal(rctx *nctx.MachineContext) (r
 	return reconcile.Result{}, nil
 }
 
+// ensureBootstrapRef checks that the bootstrap data reference is populated on
+// the NutanixMachine. Returns true when the ref is ready and reconciliation
+// can proceed, or false when the caller should return early and wait.
+func (r *NutanixMachineReconciler) ensureBootstrapRef(rctx *nctx.MachineContext) bool {
+	log := ctrl.LoggerFrom(rctx.Context)
+
+	if rctx.NutanixMachine.Spec.BootstrapRef != nil {
+		return true
+	}
+
+	if rctx.Machine.Spec.Bootstrap.DataSecretName == nil {
+		controlPlaneInitialized := rctx.Cluster.Status.Initialization.ControlPlaneInitialized != nil && *rctx.Cluster.Status.Initialization.ControlPlaneInitialized
+		if !nctx.IsControlPlaneMachine(rctx.NutanixMachine) && !controlPlaneInitialized {
+			log.Info("Waiting for the control plane to be initialized")
+			v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.ControlplaneNotInitialized, capiv1beta1.ConditionSeverityInfo, "")
+			v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
+				Type:   string(infrav1.VMProvisionedCondition),
+				Status: metav1.ConditionFalse,
+				Reason: infrav1.ControlplaneNotInitialized,
+			})
+		} else {
+			v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.VMProvisionedCondition, infrav1.BootstrapDataNotReady, capiv1beta1.ConditionSeverityInfo, "")
+			v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
+				Type:   string(infrav1.VMProvisionedCondition),
+				Status: metav1.ConditionFalse,
+				Reason: infrav1.BootstrapDataNotReady,
+			})
+			log.Info("Waiting for bootstrap data to be available")
+		}
+		return false
+	}
+
+	rctx.NutanixMachine.Spec.BootstrapRef = &corev1.ObjectReference{
+		APIVersion: "v1",
+		Kind:       "Secret",
+		Name:       *rctx.Machine.Spec.Bootstrap.DataSecretName,
+		Namespace:  rctx.Machine.Namespace,
+	}
+	log.V(1).Info(fmt.Sprintf("Added the spec.bootstrapRef to NutanixMachine object: %v", rctx.NutanixMachine.Spec.BootstrapRef))
+	return true
+}
+
 // syncVmUUID sets and synchronizes the NutanixMachine.Status.VmUUID with Machine.Status.NodeInfo.SystemUUID
 // if available. The SystemUUID from the CAPI Machine is the source of truth as it comes from the actual node.
 // If SystemUUID is not available, it falls back to using the provided vmExtId.
@@ -600,7 +638,7 @@ func (r *NutanixMachineReconciler) syncVmUUID(rctx *nctx.MachineContext, vmExtId
 		log.Info("Updated NutanixMachine VmUUID status", "vmUUID", targetUUID)
 
 		if err := r.patchMachine(rctx); err != nil {
-			return fmt.Errorf("failed to patch NutanixMachine %s after setting VmUUID from %s: %v", rctx.NutanixMachine.Name, targetUUID, err)
+			return fmt.Errorf("failed to patch NutanixMachine %s after setting VmUUID from %s: %w", rctx.NutanixMachine.Name, targetUUID, err)
 		}
 	}
 
@@ -659,10 +697,21 @@ func (r *NutanixMachineReconciler) checkFailureDomainStatus(rctx *nctx.MachineCo
 }
 
 func (r *NutanixMachineReconciler) getFailureDomainSpec(rctx *nctx.MachineContext, fdName string) (*infrav1.NutanixFailureDomainSpec, error) {
+	failureDomainName := rctx.Machine.Spec.FailureDomain
+
+	// handling the NutanixMetro failure domain
+	if isNutanixMetroFailureDomain(failureDomainName) {
+		return r.getMetroFailureDomainSpec(rctx, failureDomainName[len(metroFailureDomainPrefix):])
+	}
+
+	// handling the NutanixMetroSite failure domain
+	if isNutanixMetroSiteFailureDomain(failureDomainName) {
+		return r.getMetroSiteFailureDomainSpec(rctx, failureDomainName[len(metroSiteFailureDomainPrefix):])
+	}
+
 	// TODO: @faiq -- to handle the legacy failure domains this function checks to see if fdName
 	// is present in the legacy embedded field. if it is, we return a "dummy" spec for the new failure domain
 	// CR with the subnets and cluster info
-	failureDomainName := rctx.Machine.Spec.FailureDomain
 	if rctx.NutanixCluster != nil && len(rctx.NutanixCluster.Spec.FailureDomains) > 0 { //nolint:staticcheck // this handles old field
 		failureDomain := GetLegacyFailureDomainFromNutanixCluster(failureDomainName, rctx.NutanixCluster)
 		if failureDomain != nil {
@@ -686,11 +735,16 @@ func (r *NutanixMachineReconciler) getFailureDomainSpec(rctx *nctx.MachineContex
 }
 
 func (r *NutanixMachineReconciler) validateFailureDomainSpec(rctx *nctx.MachineContext, fdSpec *infrav1.NutanixFailureDomainSpec) error {
-	// Validate the failure domain configuration
+	// Validate the failure domain configuration. Resolve the PE in a single call so we avoid a
+	// redundant List(by name)+Get(by UUID) round trip when only the PE name is provided.
 	pe := fdSpec.PrismElementCluster
-	peUUID, err := GetPEUUID(rctx.Context, rctx.ConvergedClient, pe.Name, pe.UUID)
+	peCluster, err := GetPEClusterByIdentifier(rctx.Context, rctx.ConvergedClient, pe.Name, pe.UUID)
 	if err != nil {
 		return err
+	}
+	peUUID := ptr.Deref(peCluster.ExtId, "")
+	if peCluster.Config == nil || peCluster.Config.IsAvailable == nil || !*peCluster.Config.IsAvailable {
+		return fmt.Errorf("the PE cluster %s is not available", ptr.Deref(peCluster.Name, peUUID))
 	}
 
 	subnets := fdSpec.Subnets
@@ -700,6 +754,367 @@ func (r *NutanixMachineReconciler) validateFailureDomainSpec(rctx *nctx.MachineC
 	}
 
 	return nil
+}
+
+// getMetroFailureDomainSpec resolves a NutanixMetro failure domain to one of its two referenced
+// NutanixFailureDomains, validating PE availability and deterministically selecting the preferred one
+// via computeMetroPlacementIndex (greedy least-count, per-nodepool balancing).
+func (r *NutanixMachineReconciler) getMetroFailureDomainSpec(rctx *nctx.MachineContext, metroName string) (*infrav1.NutanixFailureDomainSpec, error) {
+	log := ctrl.LoggerFrom(rctx.Context)
+	namespace := rctx.Machine.Namespace
+
+	// Fetch the NutanixMetro and its referenced NutanixFailureDomain CRs
+	metroObj, err := getNutanixMetroObject(rctx.Context, r.Client, metroName, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// When the NutanixMachine's label "metro.nutanix.com/native-failuredomain" is set
+	nativeFdName := ""
+	if nativeFd, ok := rctx.NutanixMachine.Labels[metroNativeFailureDomainLabelKey]; ok {
+		nativeFdName = nativeFd
+	}
+
+	fdCount := len(metroObj.Spec.FailureDomains)
+	fdObjs := make([]*infrav1.NutanixFailureDomain, fdCount)
+	for i, fdRef := range metroObj.Spec.FailureDomains {
+		fdObj, err := getNutanixFailureDomainObject(rctx.Context, r.Client, fdRef.Name, namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		// return the failureDomain spec if it is the native-failuredomain. The placement was already
+		// decided on a previous reconcile, but we must still repopulate the reconcile Datastore
+		// (preferred failureDomain + PE) so a VM (re)created on this reconcile still receives its
+		// vHADomain category and metro custom attributes.
+		if nativeFdName == fdObj.Name {
+			r.storeMetroPlacementSelection(rctx, fdObj)
+			return &fdObj.Spec, nil
+		}
+
+		fdObjs[i] = fdObj
+	}
+
+	if fdCount == 0 {
+		return nil, fmt.Errorf("the NutanixMetro %s has no failureDomains", metroName)
+	}
+
+	// Round-robin: deterministically select the failureDomain for this machine, the other is the
+	// remaining. The selection balances placement across failureDomains and is concurrency-safe
+	// without serializing reconciles (see computeMetroPlacementIndex).
+	idx, err := r.computeMetroPlacementIndex(rctx, fdObjs)
+	if err != nil {
+		return nil, err
+	}
+
+	var selectedFd, remainingFd *infrav1.NutanixFailureDomain
+	for i, fdObj := range fdObjs {
+		if i == idx {
+			selectedFd = fdObj
+		} else {
+			remainingFd = fdObj
+		}
+	}
+
+	if err = r.validateFailureDomainSpec(rctx, &selectedFd.Spec); err != nil {
+		log.Error(err, fmt.Sprintf("The selected failureDomain %s failed at validation. Try with the other failureDomain.", selectedFd.Name))
+
+		if remainingFd == nil {
+			return nil, err
+		}
+		if err = r.validateFailureDomainSpec(rctx, &remainingFd.Spec); err != nil {
+			log.Error(err, fmt.Sprintf("Both failureDomains of the NutanixMetro %s failed at validation.", metroName))
+			return nil, err
+		}
+		selectedFd = remainingFd
+	}
+
+	r.storeMetroPlacementSelection(rctx, selectedFd)
+
+	return &selectedFd.Spec, nil
+}
+
+// getMetroSiteFailureDomainSpec resolves a NutanixMetroSite failure domain to its preferred
+// NutanixFailureDomain (falling back to the other on validation failure).
+func (r *NutanixMachineReconciler) getMetroSiteFailureDomainSpec(rctx *nctx.MachineContext, metrositeName string) (*infrav1.NutanixFailureDomainSpec, error) {
+	log := ctrl.LoggerFrom(rctx.Context)
+	namespace := rctx.Machine.Namespace
+
+	// Fetch the NutanixMetroSite and its referenced NutanixMetro and NutanixFailureDomain CRs
+	metrositeObj, err := getNutanixMetroSiteObject(rctx.Context, r.Client, metrositeName, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	metroObj, err := getNutanixMetroObject(rctx.Context, r.Client, metrositeObj.Spec.MetroRef.Name, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// Keep the MetroSite's groupNameLabel in the context Datastore. This must happen before the
+	// native-failuredomain early-return below so a VM (re)created on a later reconcile still gets the
+	// metro node-group custom attribute.
+	if metrositeObj.Spec.GroupNameLabel != nil && *metrositeObj.Spec.GroupNameLabel != "" {
+		if rctx.Datastore == nil {
+			rctx.Datastore = map[string]*string{}
+		}
+		rctx.Datastore[nctx.MetroNodeGroupNameLabel] = metrositeObj.Spec.GroupNameLabel
+	}
+
+	// When the NutanixMachine's label "metro.nutanix.com/native-failuredomain" is set
+	nativeFdName := ""
+	if nativeFd, ok := rctx.NutanixMachine.Labels[metroNativeFailureDomainLabelKey]; ok {
+		nativeFdName = nativeFd
+	}
+
+	var selectedFd, remainingFd *infrav1.NutanixFailureDomain
+	for _, fdRef := range metroObj.Spec.FailureDomains {
+		fdObj, err := getNutanixFailureDomainObject(rctx.Context, r.Client, fdRef.Name, namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		// return the failureDomain spec if it is the native-failuredomain
+		if nativeFdName == fdObj.Name {
+			r.storeMetroPlacementSelection(rctx, fdObj)
+			return &fdObj.Spec, nil
+		}
+
+		if fdObj.Name == metrositeObj.Spec.PreferredFailureDomain.Name {
+			selectedFd = fdObj
+		} else {
+			remainingFd = fdObj
+		}
+	}
+
+	if selectedFd == nil {
+		return nil, fmt.Errorf("the NutanixMetroSite %s preferredFailureDomain %s is not in the NutanixMetro %s failureDomains", metrositeName, metrositeObj.Spec.PreferredFailureDomain.Name, metroObj.Name)
+	}
+
+	// The selected is the preferred failureDomain. Only when it failed at validation, try the remaining one.
+	if err = r.validateFailureDomainSpec(rctx, &selectedFd.Spec); err != nil {
+		log.Error(err, fmt.Sprintf("The preferred failureDomain %s failed at validation. Try with the other failureDomain.", selectedFd.Name))
+
+		if remainingFd == nil {
+			return nil, err
+		}
+		if err = r.validateFailureDomainSpec(rctx, &remainingFd.Spec); err != nil {
+			log.Error(err, fmt.Sprintf("Both failureDomains of the NutanixMetro %s failed at validation.", metroObj.Name))
+			return nil, err
+		}
+		selectedFd = remainingFd
+	}
+
+	r.storeMetroPlacementSelection(rctx, selectedFd)
+
+	return &selectedFd.Spec, nil
+}
+
+// computeMetroPlacementIndex deterministically selects, for the machine being reconciled, the index
+// into fdObjs (the metro's failureDomains) on which it should be placed. It balances placement
+// without serializing reconciles (no concurrentReconciles=1) and without a name hash.
+//
+// Why it is concurrency-safe: every machine's NutanixMachine object already exists before its
+// reconcile runs, so all concurrent reconciles enumerate the same set of siblings, sort the
+// not-yet-placed ("pending") machines by name, and run the identical greedy least-count simulation.
+// Each machine therefore lands in a distinct, balanced slot regardless of reconcile interleaving.
+//
+//   - balancing is scoped to the machine's group (MachineSet, then MachineDeployment, then
+//     MachinePool, or the control plane; see metroPlacementGroupKey), so each group is spread evenly
+//     across the metro's failureDomains independently of the others. MachineSet is preferred over
+//     MachineDeployment so a surge-first rolling upgrade balances the new generation independently of
+//     the old one still being torn down (otherwise ties skew the new generation, e.g. 3-1).
+//   - already-placed machines (carry the native-failuredomain label) seed per-FD counts, so the
+//     result self-heals after uneven scale-downs.
+//   - terminating machines are skipped so in-flight scale-downs free up their slot.
+//   - the sibling list is read uncached (APIReader) so a lagging informer cache cannot make two
+//     machines pick the same slot.
+//
+// Ties (equal counts) are broken by failureDomain order in fdObjs.
+func (r *NutanixMachineReconciler) computeMetroPlacementIndex(rctx *nctx.MachineContext, fdObjs []*infrav1.NutanixFailureDomain) (int, error) {
+	fdIndex := make(map[string]int, len(fdObjs))
+	for i, fdObj := range fdObjs {
+		fdIndex[fdObj.Name] = i
+	}
+	counts := make([]int, len(fdObjs))
+
+	reader := client.Reader(r.Client)
+	if r.APIReader != nil {
+		reader = r.APIReader
+	}
+
+	// Resolve the nodepool of the machine being reconciled and map every sibling NutanixMachine to
+	// its nodepool via the owning CAPI Machine (the authoritative carrier of the nodepool labels).
+	groupKey := ""
+	if rctx.Machine != nil {
+		groupKey = metroPlacementGroupKey(rctx.Machine.Labels)
+	}
+	nmGroupKeys, err := r.metroMachineGroupKeys(rctx, reader)
+	if err != nil {
+		return 0, err
+	}
+
+	// NutanixMachines do not carry CAPI's nodepool labels (those live on the owning CAPI Machine),
+	// so we cannot filter them server-side by nodepool. We list them cluster-scoped and restrict to
+	// the current nodepool in-memory via nmGroupKeys (already filtered to the nodepool above).
+	machineList := &infrav1.NutanixMachineList{}
+	if err := reader.List(rctx.Context, machineList,
+		client.InNamespace(rctx.NutanixCluster.Namespace),
+		client.MatchingLabels{capiv1beta2.ClusterNameLabel: rctx.Cluster.Name},
+	); err != nil {
+		return 0, err
+	}
+
+	pending := make([]string, 0, len(machineList.Items))
+	for i := range machineList.Items {
+		nm := &machineList.Items[i]
+		// only balance within the same nodepool (when the current machine's nodepool is known)
+		if groupKey != "" && nm.Name != rctx.NutanixMachine.Name && nmGroupKeys[nm.Name] != groupKey {
+			continue
+		}
+		// skip machines being deleted so the balancer reacts to in-flight scale-downs
+		if !nm.DeletionTimestamp.IsZero() && nm.Name != rctx.NutanixMachine.Name {
+			continue
+		}
+		if fdName, ok := nm.Labels[metroNativeFailureDomainLabelKey]; ok {
+			if idx, tracked := fdIndex[fdName]; tracked {
+				counts[idx]++
+			}
+			continue
+		}
+		pending = append(pending, nm.Name)
+	}
+	// Ensure the machine being reconciled participates even if the list does not include it yet.
+	if !slices.Contains(pending, rctx.NutanixMachine.Name) {
+		pending = append(pending, rctx.NutanixMachine.Name)
+	}
+	slices.Sort(pending)
+
+	// Greedy least-count assignment over pending machines in name order; the slot computed when we
+	// reach this machine is its placement. Ties resolve to the lowest failureDomain index.
+	for _, name := range pending {
+		idx := 0
+		minCount := -1
+		for i, c := range counts {
+			if minCount < 0 || c < minCount {
+				minCount = c
+				idx = i
+			}
+		}
+		if name == rctx.NutanixMachine.Name {
+			return idx, nil
+		}
+		counts[idx]++
+	}
+
+	return 0, nil
+}
+
+// metroPlacementGroupOwnerLabels is the ordered list of CAPI owner labels used to attribute a machine
+// to a balancing group, most specific first.
+//
+// MachineSet is intentionally preferred over MachineDeployment: during a surge-first rolling upgrade
+// (the default MachineDeployment strategy, maxSurge=1/maxUnavailable=0) the replacement machine is
+// created before the machine it supersedes is deleted. If we balanced by MachineDeployment, the
+// not-yet-deleted old machines would keep the per-FD counts looking balanced and ties would keep
+// resolving to the first FD, skewing the new generation (e.g. 3-1 instead of 2-2). Each rollout
+// generation is its own MachineSet (distinct name), so scoping to MachineSet lets the new generation
+// balance independently of the old one being torn down. In steady state a MachineDeployment has
+// exactly one MachineSet, so this is equivalent to MachineDeployment scoping.
+var metroPlacementGroupOwnerLabels = []string{
+	capiv1beta2.MachineSetNameLabel,
+	capiv1beta2.MachineDeploymentNameLabel,
+	capiv1beta2.MachinePoolNameLabel,
+}
+
+// metroPlacementGroupLabel returns the single owner label (key, value) that identifies the balancing
+// group a machine belongs to, most specific first (see metroPlacementGroupOwnerLabels), falling back
+// to the control-plane label (whose value is conventionally empty). ok is false when the machine
+// cannot be attributed to any group.
+func metroPlacementGroupLabel(labels map[string]string) (key, value string, ok bool) {
+	for _, k := range metroPlacementGroupOwnerLabels {
+		if v, present := labels[k]; present && v != "" {
+			return k, v, true
+		}
+	}
+	if v, present := labels[capiv1beta2.MachineControlPlaneLabel]; present {
+		return capiv1beta2.MachineControlPlaneLabel, v, true
+	}
+	return "", "", false
+}
+
+// metroPlacementGroupKey returns a stable string key identifying the machine's balancing group. Metro
+// placement balances within a group rather than across the whole cluster. An empty string means the
+// machine could not be attributed to a group (it is then balanced cluster-wide, preserving prior
+// behavior).
+func metroPlacementGroupKey(labels map[string]string) string {
+	key, value, ok := metroPlacementGroupLabel(labels)
+	switch {
+	case !ok:
+		return ""
+	case value == "": // e.g. the control-plane label carries no value
+		return key
+	default:
+		return key + "=" + value
+	}
+}
+
+// metroPlacementGroupSelector returns the single label that scopes a List to the machine's balancing
+// group. The second return value is false when the machine cannot be attributed to a group, in which
+// case callers should fall back to a cluster-wide List.
+func metroPlacementGroupSelector(labels map[string]string) (client.MatchingLabels, bool) {
+	key, value, ok := metroPlacementGroupLabel(labels)
+	if !ok {
+		return nil, false
+	}
+	return client.MatchingLabels{key: value}, true
+}
+
+// metroMachineGroupKeys maps each NutanixMachine name to its nodepool key, resolved via the owning
+// CAPI Machine (which carries the nodepool labels). The NutanixMachine name equals the Machine's
+// infrastructureRef name. When the machine being reconciled is attributed to a nodepool, the CAPI
+// Machine List is filtered server-side to that nodepool so we only fetch the siblings we actually
+// balance against; otherwise we fall back to listing the whole cluster.
+func (r *NutanixMachineReconciler) metroMachineGroupKeys(rctx *nctx.MachineContext, reader client.Reader) (map[string]string, error) {
+	listOpts := []client.ListOption{
+		client.InNamespace(rctx.NutanixCluster.Namespace),
+		client.MatchingLabels{capiv1beta2.ClusterNameLabel: rctx.Cluster.Name},
+	}
+	if rctx.Machine != nil {
+		if selector, ok := metroPlacementGroupSelector(rctx.Machine.Labels); ok {
+			listOpts = append(listOpts, selector)
+		}
+	}
+
+	machineList := &capiv1beta2.MachineList{}
+	if err := reader.List(rctx.Context, machineList, listOpts...); err != nil {
+		return nil, err
+	}
+
+	keys := make(map[string]string, len(machineList.Items))
+	for i := range machineList.Items {
+		m := &machineList.Items[i]
+		if name := m.Spec.InfrastructureRef.Name; name != "" {
+			keys[name] = metroPlacementGroupKey(m.Labels)
+		}
+	}
+	return keys, nil
+}
+
+// storeMetroPlacementSelection records the selected preferred failureDomain and its PE in the
+// reconcile Datastore and on the NutanixMachine labels for Metro/MetroSite VM placement.
+func (r *NutanixMachineReconciler) storeMetroPlacementSelection(rctx *nctx.MachineContext, selectedFd *infrav1.NutanixFailureDomain) {
+	if rctx.Datastore == nil {
+		rctx.Datastore = map[string]*string{}
+	}
+	rctx.Datastore[nctx.MetroPreferredFailureDomainName] = ptr.To(selectedFd.Name)
+	rctx.Datastore[nctx.MetroPreferredPE] = ptr.To(selectedFd.Spec.PrismElementCluster.String())
+
+	if rctx.NutanixMachine.Labels == nil {
+		rctx.NutanixMachine.Labels = map[string]string{}
+	}
+	rctx.NutanixMachine.Labels[metroNativeFailureDomainLabelKey] = selectedFd.Name
+	rctx.NutanixMachine.Labels[metroNativePELabelKey] = selectedFd.Spec.PrismElementCluster.String()
 }
 
 func (r *NutanixMachineReconciler) validateMachineConfig(rctx *nctx.MachineContext) error {
@@ -769,6 +1184,7 @@ func (r *NutanixMachineReconciler) validateMachineConfig(rctx *nctx.MachineConte
 
 func (r *NutanixMachineReconciler) validateDataDisks(dataDisks []infrav1.NutanixMachineVMDisk) error {
 	errors := []error{}
+	usedDeviceIndexByAdapter := make(map[string]map[int32]struct{})
 	for _, disk := range dataDisks {
 
 		if disk.DiskSize.Cmp(minMachineDataDiskSize) < 0 {
@@ -779,6 +1195,20 @@ func (r *NutanixMachineReconciler) validateDataDisks(dataDisks []infrav1.Nutanix
 
 		if disk.DeviceProperties != nil {
 			errors = validateDataDiskDeviceProperties(disk, errors)
+
+			// DeviceIndex 0 means "unspecified" and is auto-assigned later, so we
+			// only detect duplicates for explicitly set non-zero indexes.
+			if disk.DeviceProperties.DeviceIndex != 0 {
+				adapterType := string(disk.DeviceProperties.AdapterType)
+				if _, ok := usedDeviceIndexByAdapter[adapterType]; !ok {
+					usedDeviceIndexByAdapter[adapterType] = make(map[int32]struct{})
+				}
+				if _, ok := usedDeviceIndexByAdapter[adapterType][disk.DeviceProperties.DeviceIndex]; ok {
+					errors = append(errors, fmt.Errorf("index '%d' is already in use", disk.DeviceProperties.DeviceIndex))
+				} else {
+					usedDeviceIndexByAdapter[adapterType][disk.DeviceProperties.DeviceIndex] = struct{}{}
+				}
+			}
 		}
 
 		if disk.DataSource != nil {
@@ -865,6 +1295,23 @@ func validateDataDiskDeviceProperties(disk infrav1.NutanixMachineVMDisk, errors 
 }
 
 // GetOrCreateVM creates a VM and is invoked by the NutanixMachineReconciler
+// setMetroCustomAttributes sets the metro placement customAttributes on the VM
+// for Metro/MetroSite failure domains.
+func setMetroCustomAttributes(rctx *nctx.MachineContext, vm *vmmconfig.Vm) {
+	if isNutanixMetroFailureDomain(rctx.Machine.Spec.FailureDomain) || isNutanixMetroSiteFailureDomain(rctx.Machine.Spec.FailureDomain) {
+		if preferredPE := rctx.Datastore[nctx.MetroPreferredPE]; preferredPE != nil {
+			vm.CustomAttributes = []string{
+				vmCustomAttributePrefix4MetroPreferredPE + *preferredPE,
+			}
+		}
+	}
+	if isNutanixMetroSiteFailureDomain(rctx.Machine.Spec.FailureDomain) {
+		if groupNameLabel := rctx.Datastore[nctx.MetroNodeGroupNameLabel]; groupNameLabel != nil {
+			vm.CustomAttributes = append(vm.CustomAttributes, vmCustomAttributePrefix4MetroNodeGroupNameLabel+*groupNameLabel)
+		}
+	}
+}
+
 func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vmmconfig.Vm, error) {
 	var err error
 	ctx := rctx.Context
@@ -882,6 +1329,7 @@ func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vm
 	// if VM exists
 	if vmFound != nil {
 		log.Info(fmt.Sprintf("vm %s found with UUID %s", *vmFound.Name, rctx.NutanixMachine.Status.VmUUID))
+
 		v1beta1conditions.MarkTrue(rctx.NutanixMachine, infrav1.VMProvisionedCondition)
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
 			Type:   string(infrav1.VMProvisionedCondition),
@@ -913,6 +1361,9 @@ func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vm
 		return nil, err
 	}
 
+	// Set the metro placement customAttributes on the VM for Metro/MetroSite failure domains.
+	setMetroCustomAttributes(rctx, vm)
+
 	// Set cluster reference
 	vm.Cluster = vmmconfig.NewClusterReference()
 	vm.Cluster.ExtId = &peUUID
@@ -929,10 +1380,21 @@ func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vm
 	vm.Nics = nics
 
 	// Set categories on VM
-	categoryReferences, err := GetPrismReferencesOfCategoryIdentifiers(ctx, rctx.ConvergedClient, r.getMachineCategoryIdentifiers(rctx))
+	categoryIdentifiers, err := r.getMachineCategoryIdentifiers(rctx)
 	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while creating category spec for vm %s: %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		errorMsg := fmt.Errorf("error occurred while getting category identifiers for vm %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
+	}
+
+	categoryReferences, err := GetPrismReferencesOfCategoryIdentifiers(ctx, rctx.ConvergedClient, categoryIdentifiers)
+	if err != nil {
+		errorMsg := fmt.Errorf("error occurred while creating category spec for vm %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
 		return nil, errorMsg
 	}
 	vm.Categories = categoryReferences
@@ -940,50 +1402,58 @@ func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vm
 	// Set Project in VM Spec before creating VM
 	err = r.addVMToProject(rctx, vm)
 	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while trying to add VM %s to project: %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		errorMsg := fmt.Errorf("error occurred while trying to add VM %s to project: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 
 	// Get GPU list
 	gpus, err := GetGPUList(ctx, convergedClient, rctx.NutanixMachine.Spec.GPUs, peUUID)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to get the GPU list to create the VM %s. %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		errorMsg := fmt.Errorf("failed to get the GPU list to create the VM %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 	vm.Gpus = gpus
 
 	disks, cdRoms, err := getDiskList(rctx, peUUID)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to get the disk list to create the VM %s. %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		errorMsg := fmt.Errorf("failed to get the disk list to create the VM %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 	vm.Disks = disks
 	vm.CdRoms = cdRoms
 
 	if err := r.addGuestCustomizationToVM(rctx, vm); err != nil {
-		errorMsg := fmt.Errorf("error occurred while adding guest customization to vm spec: %v", err)
+		errorMsg := fmt.Errorf("error occurred while adding guest customization to vm spec: %w", err)
 		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		return nil, errorMsg
 	}
 
 	// Set BootType in VM Spec before creating VM
 	err = r.addBootTypeToVM(rctx, vm)
 	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while adding boot type to vm spec: %v", err)
+		errorMsg := fmt.Errorf("error occurred while adding boot type to vm spec: %w", err)
 		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		return nil, errorMsg
 	}
 
 	// Create the actual VM/Machine
 	log.Info(fmt.Sprintf("Creating VM with name %s for cluster %s", vmName, rctx.NutanixCluster.Name))
 	vm, err = convergedClient.VMs.Create(ctx, vm)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to create VM %s. error: %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		errorMsg := fmt.Errorf("failed to create VM %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 
 	vmUuid := *vm.ExtId
@@ -1003,43 +1473,81 @@ func (r *NutanixMachineReconciler) getOrCreateVM(rctx *nctx.MachineContext) (*vm
 		return nil, err
 	}
 
-	// Set custom attributes on the VM with providerID
-	customAttributes := []string{vmCustomAttributePrefix4ProviderID + vmUuid}
-	log.V(1).Info(fmt.Sprintf("Updating custom attributes on VM %s: %v", vmName, customAttributes))
-	_, err = convergedClient.VMs.AddVmCustomAttributes(ctx, vmUuid, customAttributes)
-	if err != nil {
-		log.Error(err, fmt.Sprintf("failed to update custom attributes on VM %s with UUID %s, continuing", vmName, vmUuid))
-	}
-
-	// Power on VM
-	log.Info("Powering VM on after creation")
-	powerOnTask, err := convergedClient.VMs.PowerOnVM(vmUuid)
-	if err != nil {
-		errMsg := fmt.Errorf("error occured while powering on VM %s: %v", vmName, err)
-		rctx.SetFailureStatus(powerOnErrorFailureReason, errMsg)
-		return nil, errMsg
-	}
-	_, err = powerOnTask.Wait(ctx)
-	if err != nil {
-		errMsg := fmt.Errorf("error occured while waiting for VM %s to power on: %v", vmName, err)
-		rctx.SetFailureStatus(powerOnErrorFailureReason, errMsg)
-		return nil, errMsg
-	}
-
-	log.Info("Fetching VM after creation")
-	vm, err = FindVMByUUID(ctx, convergedClient, vmUuid)
-	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while getting VM %s after creation: %v", vmName, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, errorMsg
-	}
-
 	v1beta1conditions.MarkTrue(rctx.NutanixMachine, infrav1.VMProvisionedCondition)
 	v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
 		Type:   string(infrav1.VMProvisionedCondition),
 		Status: metav1.ConditionTrue,
 		Reason: capiv1beta1.ProvisionedV1Beta2Reason,
 	})
+	return vm, nil
+}
+
+// addCustomAttributes sets custom attributes on the VM, including the provider ID.
+// It is a no-op if the desired attributes are already present on the VM.
+func (r *NutanixMachineReconciler) addCustomAttributes(rctx *nctx.MachineContext, vm *vmmconfig.Vm) error {
+	ctx := rctx.Context
+	log := ctrl.LoggerFrom(ctx)
+	convergedClient := rctx.ConvergedClient
+
+	vmName := *vm.Name
+
+	if slices.ContainsFunc(vm.CustomAttributes, func(attr string) bool {
+		return strings.HasPrefix(attr, vmCustomAttributePrefix4ProviderID)
+	}) {
+		log.V(1).Info(fmt.Sprintf("Custom attributes already present on VM %s, skipping update", vmName))
+		return nil
+	}
+
+	vmUUID := *vm.ExtId
+	desiredAttr := vmCustomAttributePrefix4ProviderID + vmUUID
+
+	log.V(1).Info(fmt.Sprintf("Updating custom attributes on VM %s: %v", vmName, []string{desiredAttr}))
+	_, err := convergedClient.VMs.AddVmCustomAttributes(ctx, vmUUID, []string{desiredAttr})
+	if err != nil {
+		errMsg := fmt.Errorf("failed to update custom attributes on VM %s with UUID %s: %w", vmName, vmUUID, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errMsg)
+		}
+		return errMsg
+	}
+	return nil
+}
+
+// powerOnVM powers on the VM, waits for the task to complete, and returns the
+// re-fetched VM. Both the "existing VM found off" and "newly created VM" paths
+// use this so power-on error handling stays in one place.
+func (r *NutanixMachineReconciler) powerOnVM(rctx *nctx.MachineContext, vmUUID, vmName string) (*vmmconfig.Vm, error) {
+	ctx := rctx.Context
+	log := ctrl.LoggerFrom(ctx)
+	convergedClient := rctx.ConvergedClient
+
+	log.Info(fmt.Sprintf("Powering on VM %s", vmName))
+	powerOnTask, err := convergedClient.VMs.PowerOnVM(vmUUID)
+	if err != nil {
+		errMsg := fmt.Errorf("error occured while powering on VM %s: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(powerOnErrorFailureReason, errMsg)
+		}
+		return nil, errMsg
+	}
+	_, err = powerOnTask.Wait(ctx)
+	if err != nil {
+		errMsg := fmt.Errorf("error occured while waiting for VM %s to power on: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(powerOnErrorFailureReason, errMsg)
+		}
+		return nil, errMsg
+	}
+
+	log.Info(fmt.Sprintf("Fetching VM %s after power on", vmName))
+	vm, err := FindVMByUUID(ctx, convergedClient, vmUUID)
+	if err != nil {
+		errorMsg := fmt.Errorf("error occurred while getting VM %s after power on: %w", vmName, err)
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(powerOnErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
+	}
 	return vm, nil
 }
 
@@ -1139,8 +1647,10 @@ func getSystemDisk(rctx *nctx.MachineContext) (*vmmconfig.Disk, error) {
 	}
 	if err != nil {
 		errorMsg := fmt.Errorf("failed to get system disk image %q: %w", rctx.NutanixMachine.Spec.Image, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 
 	// Consider this a precaution. If the image is marked for deletion after we
@@ -1161,7 +1671,7 @@ func getSystemDisk(rctx *nctx.MachineContext) (*vmmconfig.Disk, error) {
 	if err != nil {
 		errorMsg := fmt.Errorf("error occurred while creating system disk spec: %w", err)
 		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		return nil, errorMsg
 	}
 
 	return systemDisk, nil
@@ -1175,8 +1685,10 @@ func getBootstrapDisk(rctx *nctx.MachineContext) (*vmmconfig.CdRom, error) {
 	bootstrapImage, err := GetImage(rctx.Context, rctx.ConvergedClient, bootstrapImageRef)
 	if err != nil {
 		errorMsg := fmt.Errorf("failed to get bootstrap disk image %q: %w", bootstrapImageRef, err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, err
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, errorMsg
 	}
 
 	// Consider this a precaution. If the image is marked for deletion after we
@@ -1205,8 +1717,10 @@ func getDataDisks(rctx *nctx.MachineContext, peUUID string) ([]vmmconfig.Disk, [
 	dataDisks, dataCdRoms, err := CreateDataDiskList(rctx.Context, rctx.ConvergedClient, rctx.NutanixMachine.Spec.DataDisks, peUUID)
 	if err != nil {
 		errorMsg := fmt.Errorf("error occurred while creating data disk spec: %w", err)
-		rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
-		return nil, nil, err
+		if !isRetryableAPIError(err) {
+			rctx.SetFailureStatus(createErrorFailureReason, errorMsg)
+		}
+		return nil, nil, errorMsg
 	}
 
 	return dataDisks, dataCdRoms, nil
@@ -1240,12 +1754,12 @@ func (r *NutanixMachineReconciler) patchMachine(rctx *nctx.MachineContext) error
 	log := ctrl.LoggerFrom(rctx.Context)
 	patchHelper, err := v1beta1patch.NewHelper(rctx.NutanixMachine, r.Client)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to create patch helper to patch machine %s: %v", rctx.NutanixMachine.Name, err)
+		errorMsg := fmt.Errorf("failed to create patch helper to patch machine %s: %w", rctx.NutanixMachine.Name, err)
 		return errorMsg
 	}
 	err = patchHelper.Patch(rctx.Context, rctx.NutanixMachine)
 	if err != nil {
-		errorMsg := fmt.Errorf("failed to patch machine %s: %v", rctx.NutanixMachine.Name, err)
+		errorMsg := fmt.Errorf("failed to patch machine %s: %w", rctx.NutanixMachine.Name, err)
 		return errorMsg
 	}
 	log.V(1).Info(fmt.Sprintf("Patched machine %s: Status %+v Spec %+v", rctx.NutanixMachine.Name, rctx.NutanixMachine.Status, rctx.NutanixMachine.Spec))
@@ -1329,7 +1843,7 @@ func (r *NutanixMachineReconciler) assignAddressesToMachine(rctx *nctx.MachineCo
 	return nil
 }
 
-func (r *NutanixMachineReconciler) getMachineCategoryIdentifiers(rctx *nctx.MachineContext) []*infrav1.NutanixCategoryIdentifier {
+func (r *NutanixMachineReconciler) getMachineCategoryIdentifiers(rctx *nctx.MachineContext) ([]*infrav1.NutanixCategoryIdentifier, error) {
 	log := ctrl.LoggerFrom(rctx.Context)
 	categoryIdentifiers := GetDefaultCAPICategoryIdentifiers(rctx.Cluster.Name)
 	// Only try to create default categories. ignoring error so that we can return all including
@@ -1347,7 +1861,23 @@ func (r *NutanixMachineReconciler) getMachineCategoryIdentifiers(rctx *nctx.Mach
 		}
 	}
 
-	return categoryIdentifiers
+	// Add the vHADomain category if the machine is configured with a NutanixMetro/NutanixMetroSite
+	// failureDomain. The vHADomain category is applied only at VM creation and is never re-synced onto
+	// an already-created VM, so this must succeed before the VM is created. Returning the error (rather
+	// than swallowing it) requeues the reconcile until the vHADomain and its Prism Central category are
+	// ready; otherwise a VM created before the vHADomain is ready (e.g. the first control-plane node on
+	// a fresh metro cluster) would be permanently left out of its metro protection policy/recovery plan.
+	if isNutanixMetroFailureDomain(rctx.Machine.Spec.FailureDomain) ||
+		isNutanixMetroSiteFailureDomain(rctx.Machine.Spec.FailureDomain) {
+		vhaCategory, err := getVHADomainCategory(rctx, r.Client)
+		if err != nil {
+			return nil, err
+		}
+		categoryIdentifiers = append(categoryIdentifiers, vhaCategory)
+		log.Info(fmt.Sprintf("Adding the vHADomain category (key: %s, value %s) to VM", vhaCategory.Key, vhaCategory.Value))
+	}
+
+	return categoryIdentifiers, nil
 }
 
 func (r *NutanixMachineReconciler) addBootTypeToVM(rctx *nctx.MachineContext, vm *vmmconfig.Vm) error {
@@ -1414,7 +1944,7 @@ func (r *NutanixMachineReconciler) addVMToProject(rctx *nctx.MachineContext, vm 
 
 	projectExtId, err := GetProjectUUID(rctx.Context, rctx.NutanixClient, projectRef.Name, projectRef.UUID)
 	if err != nil {
-		errorMsg := fmt.Errorf("error occurred while searching for project for VM %s: %v", vmName, err)
+		errorMsg := fmt.Errorf("error occurred while searching for project for VM %s: %w", vmName, err)
 		log.Error(errorMsg, "error occurred while searching for project")
 		v1beta1conditions.MarkFalse(rctx.NutanixMachine, infrav1.ProjectAssignedCondition, infrav1.ProjectAssignationFailed, capiv1beta1.ConditionSeverityError, "%s", errorMsg.Error())
 		v1beta2conditions.Set(rctx.NutanixMachine, metav1.Condition{
