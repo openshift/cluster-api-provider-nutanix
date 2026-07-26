@@ -11,3 +11,16 @@ images:
 - name: ghcr.io/nutanix-cloud-native/cluster-api-provider-nutanix/controller
   newName: registry.ci.openshift.org/openshift
   newTag: nutanix-cluster-api-controllers
+
+patches:
+# Add TLS configuration args (substituted by cluster-capi-operator revisiongenerator)
+- target:
+    kind: Deployment
+    name: capx-controller-manager
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: "--tls-min-version=${TLS_MIN_VERSION}"
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: "--tls-cipher-suites=${TLS_CIPHER_SUITES}"
