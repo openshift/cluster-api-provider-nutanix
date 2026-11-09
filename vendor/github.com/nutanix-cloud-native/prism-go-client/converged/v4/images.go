@@ -21,6 +21,7 @@ import (
 
 	vmmPrismModels "github.com/nutanix/ntnx-api-golang-clients/vmm-go-client/v4/models/prism/v4/config"
 	imageModels "github.com/nutanix/ntnx-api-golang-clients/vmm-go-client/v4/models/vmm/v4/content"
+	imageRequest "github.com/nutanix/ntnx-api-golang-clients/vmm-go-client/v4/models/vmm/v4/request/images"
 )
 
 const (
@@ -32,7 +33,27 @@ const (
 	defaultAWSRegion = "us-east-1"
 )
 
+// headerInjectingTransport wraps an http.RoundTripper to set a fixed set of
+// headers on every outgoing request. Used so that the AWS HTTP client's S3
+// PutObject requests carry the same gateway credentials as the rest of the
+// Prism client.
+type headerInjectingTransport struct {
+	base    http.RoundTripper
+	headers http.Header
+}
+
+func (t *headerInjectingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone before mutating: per the RoundTripper contract, RoundTrip must
+	// not modify the request the caller passed in.
+	clone := req.Clone(req.Context())
+	for k, vs := range t.headers {
+		clone.Header[k] = vs
+	}
+	return t.base.RoundTrip(clone)
+}
+
 // ImagesService provides implementation for all Images interface methods.
+// TODO: Migrate to ImagesServiceApi methods which support project params in a future PR.
 type ImagesService struct {
 	client       *v4prismGoClient.Client
 	entitiesName string
@@ -51,7 +72,11 @@ func (s *ImagesService) Get(ctx context.Context, uuid string) (*imageModels.Imag
 
 	return GenericGetEntity[*imageModels.GetImageApiResponse, imageModels.Image](
 		func() (*imageModels.GetImageApiResponse, error) {
-			return s.client.ImagesApiInstance.GetImageById(&uuid)
+			return s.client.ImagesApiInstance.ServiceClient.GetImageById(ctx,
+				&imageRequest.GetImageByIdRequest{
+					ExtId: &uuid,
+				},
+			)
 		},
 		s.entitiesName,
 	)
@@ -74,12 +99,14 @@ func (s *ImagesService) List(ctx context.Context, opts ...converged.ODataOption)
 
 	return GenericListEntities[*imageModels.ListImagesApiResponse, imageModels.Image](
 		func(reqParams *V4ODataParams) (*imageModels.ListImagesApiResponse, error) {
-			return s.client.ImagesApiInstance.ListImages(
-				reqParams.Page,
-				reqParams.Limit,
-				reqParams.Filter,
-				reqParams.OrderBy,
-				reqParams.Select,
+			return s.client.ImagesApiInstance.ServiceClient.ListImages(ctx,
+				&imageRequest.ListImagesRequest{
+					Page_:    reqParams.Page,
+					Limit_:   reqParams.Limit,
+					Filter_:  reqParams.Filter,
+					Orderby_: reqParams.OrderBy,
+					Select_:  reqParams.Select,
+				},
 			)
 		},
 		opts,
@@ -96,12 +123,14 @@ func (s *ImagesService) NewIterator(ctx context.Context, opts ...converged.OData
 	return GenericNewIterator[*imageModels.ListImagesApiResponse, imageModels.Image](
 		ctx,
 		func(ctx context.Context, reqParams *V4ODataParams) (*imageModels.ListImagesApiResponse, error) {
-			return s.client.ImagesApiInstance.ListImages(
-				reqParams.Page,
-				reqParams.Limit,
-				reqParams.Filter,
-				reqParams.OrderBy,
-				reqParams.Select,
+			return s.client.ImagesApiInstance.ServiceClient.ListImages(ctx,
+				&imageRequest.ListImagesRequest{
+					Page_:    reqParams.Page,
+					Limit_:   reqParams.Limit,
+					Filter_:  reqParams.Filter,
+					Orderby_: reqParams.OrderBy,
+					Select_:  reqParams.Select,
+				},
 			)
 		},
 		opts,
@@ -156,7 +185,12 @@ func (s *ImagesService) GetFile(ctx context.Context, uuid string) (*imageModels.
 	}
 
 	result, err := CallAPI[*imageModels.GetImageFileApiResponse, imageModels.FileDetail](
-		s.client.ImagesApiInstance.GetFileByImageId(&uuid),
+		s.client.ImagesApiInstance.ServiceClient.GetFileByImageId(ctx,
+			&imageRequest.GetFileByImageIdRequest{
+				ImageExtId: &uuid,
+			},
+			nil,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image file: %w", err)
@@ -166,10 +200,16 @@ func (s *ImagesService) GetFile(ctx context.Context, uuid string) (*imageModels.
 }
 
 // Upload uploads the image file to the given UUID.
-func (s *ImagesService) Upload(ctx context.Context, uuid, filepath string) error {
+//
+// Optional UploadOptions configure the upload — see converged.WithUploadProjectUUID
+// and converged.WithExtraHeaders. Calling Upload with no options preserves the
+// pre-options behaviour exactly.
+func (s *ImagesService) Upload(ctx context.Context, uuid, filepath string, opts ...converged.UploadOption) error {
 	if s.client == nil {
 		return errors.New("client is not initialized")
 	}
+
+	uploadOpts := converged.NewUploadOptions(opts...)
 
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -177,11 +217,11 @@ func (s *ImagesService) Upload(ctx context.Context, uuid, filepath string) error
 	}
 	defer func() { _ = file.Close() }()
 
-	if err := s.uploadToObjects(ctx, uuid, file); err != nil {
+	if err := s.uploadToObjects(ctx, uuid, file, &uploadOpts); err != nil {
 		return err
 	}
 
-	image, err := s.imageFromObjectsLite(uuid, filepath)
+	image, err := s.imageFromObjectsLite(uuid, filepath, uploadOpts.ProjectUUID)
 	if err != nil {
 		return err
 	}
@@ -194,8 +234,8 @@ func (s *ImagesService) Upload(ctx context.Context, uuid, filepath string) error
 }
 
 // uploadToObjects uploads a file to Objects Lite S3 storage
-func (s *ImagesService) uploadToObjects(ctx context.Context, uuid string, file *os.File) error {
-	awsConfig, endpoint, err := s.awsConfig(ctx)
+func (s *ImagesService) uploadToObjects(ctx context.Context, uuid string, file *os.File, uo *converged.UploadOptions) error {
+	awsConfig, endpoint, err := s.awsConfig(ctx, uo)
 	if err != nil {
 		return err
 	}
@@ -219,7 +259,7 @@ func (s *ImagesService) uploadToObjects(ctx context.Context, uuid string, file *
 	return nil
 }
 
-func (s *ImagesService) imageFromObjectsLite(objectKey, sourcePath string) (*imageModels.Image, error) {
+func (s *ImagesService) imageFromObjectsLite(objectKey, sourcePath, projectUUID string) (*imageModels.Image, error) {
 	name := filepath.Base(sourcePath)
 	imageType := imageModels.IMAGETYPE_DISK_IMAGE
 	if strings.EqualFold(filepath.Ext(sourcePath), ".iso") {
@@ -237,10 +277,13 @@ func (s *ImagesService) imageFromObjectsLite(objectKey, sourcePath string) (*ima
 	image.Name = &name
 	image.Type = imageType.Ref()
 	image.Source = source
+	if projectUUID != "" {
+		image.ProjectExtId = &projectUUID
+	}
 	return image, nil
 }
 
-func (s *ImagesService) awsConfig(_ context.Context) (aws.Config, string, error) {
+func (s *ImagesService) awsConfig(_ context.Context, uo *converged.UploadOptions) (aws.Config, string, error) {
 	apiClient := s.client.ImagesApiInstance.ApiClient
 
 	// Objects Lite S3 endpoint
@@ -261,12 +304,21 @@ func (s *ImagesService) awsConfig(_ context.Context) (aws.Config, string, error)
 		Credentials: credentials.NewStaticCredentialsProvider(encoded, encoded, ""),
 	}
 
-	if !apiClient.VerifySSL {
-		awsCfg.HTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-			},
+	// Build a custom HTTP client only when needed: either to skip TLS
+	// verification, or to inject extra headers supplied by the caller.
+	// When neither applies, the AWS SDK's default client is used — preserving
+	// pre-options behaviour exactly.
+	if !apiClient.VerifySSL || (uo != nil && len(uo.ExtraHeaders) > 0) {
+		var transport http.RoundTripper = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: !apiClient.VerifySSL}, //nolint:gosec // intentionally skip TLS verification when user sets insecure mode
 		}
+		if uo != nil && len(uo.ExtraHeaders) > 0 {
+			transport = &headerInjectingTransport{
+				base:    transport,
+				headers: uo.ExtraHeaders,
+			}
+		}
+		awsCfg.HTTPClient = &http.Client{Transport: transport}
 	}
 
 	return awsCfg, endpoint, nil
@@ -279,7 +331,12 @@ func (s *ImagesService) CreateAsync(ctx context.Context, image *imageModels.Imag
 	}
 	s.client.ImagesApiInstance.ApiClient.AddDefaultHeader("Ntnx-Request-Id", uuid.NewString())
 	taskRef, err := CallAPI[*imageModels.CreateImageApiResponse, vmmPrismModels.TaskReference](
-		s.client.ImagesApiInstance.CreateImage(image),
+		s.client.ImagesApiInstance.ServiceClient.CreateImage(ctx,
+			&imageRequest.CreateImageRequest{
+				Body: image,
+			},
+			nil,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create image: %w", err)
@@ -302,7 +359,12 @@ func (s *ImagesService) DeleteAsync(ctx context.Context, uuid string) (converged
 		return nil, errors.New("client is not initialized")
 	}
 	taskRef, err := CallAPI[*imageModels.DeleteImageApiResponse, vmmPrismModels.TaskReference](
-		s.client.ImagesApiInstance.DeleteImageById(&uuid),
+		s.client.ImagesApiInstance.ServiceClient.DeleteImageById(ctx,
+			&imageRequest.DeleteImageByIdRequest{
+				ExtId: &uuid,
+			},
+			nil,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete image: %w", err)
